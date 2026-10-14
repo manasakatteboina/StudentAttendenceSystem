@@ -1,0 +1,318 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Reports</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 25px;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px #00000010;
+        }
+
+        input, button {
+            padding: 10px;
+            margin: 5px 3px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+        }
+
+        button {
+            cursor: pointer;
+            background: #4f46e5;
+            color: white;
+            border: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #4f46e5;
+            color: white;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        #message {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <div class="header">
+        <div>
+            <h1>Attendance Reports</h1>
+            <p>Search attendance records and calculate attendance percentage.</p>
+        </div>
+        <button onclick="location.href='dashboard.html'">
+            Back to Dashboard
+        </button>
+    </div>
+
+    <div class="card">
+        <label for="search">Search by roll number or student name:</label>
+        <input id="search" type="text" placeholder="Enter roll number or name">
+
+        <label for="fromDate">From:</label>
+        <input id="fromDate" type="date">
+
+        <label for="toDate">To:</label>
+        <input id="toDate" type="date">
+
+        <button id="searchButton">Search</button>
+        <button id="clearButton">Clear</button>
+
+        <p id="message" role="status">Loading attendance records...</p>
+    </div>
+
+    <div class="card">
+        <h2>Attendance Summary</h2>
+        <p>Total records: <strong id="total">0</strong></p>
+        <p>Present: <strong id="present">0</strong></p>
+        <p>Absent: <strong id="absent">0</strong></p>
+    </div>
+
+    <div class="card">
+        <h2>Student Attendance Percentage</h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Roll No.</th>
+                        <th>Student Name</th>
+                        <th>Present</th>
+                        <th>Absent</th>
+                        <th>Total</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody id="reportRows">
+                    <tr><td colspan="6">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+const API_URL = "http://localhost:3000";
+
+let students = [];
+let records = [];
+
+function safe(value) {
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[ch]);
+}
+
+// Supports string IDs and older MongoDB ObjectId records.
+// ObjectId records are matched by their original studentId where possible.
+function findStudent(record) {
+    const recordId = record.studentId;
+
+    if (recordId && typeof recordId === "object") {
+        if (recordId.studentId) {
+            return students.find(s =>
+                String(s.studentId) === String(recordId.studentId)
+            );
+        }
+
+        // Legacy records may contain a MongoDB Student _id.
+        if (recordId._id) {
+            return students.find(s =>
+                String(s._id) === String(recordId._id)
+            );
+        }
+    }
+
+    const id = String(recordId ?? "");
+
+    return students.find(s =>
+        String(s.studentId) === id
+    );
+}
+
+function getDate(record) {
+    return String(record.date ?? "").slice(0, 10);
+}
+
+async function loadReports() {
+    const message = document.getElementById("message");
+    message.textContent = "Loading records...";
+
+    try {
+        const [studentResponse, attendanceResponse] = await Promise.all([
+            fetch(`${API_URL}/students`),
+            fetch(`${API_URL}/attendance`)
+        ]);
+
+        if (!studentResponse.ok || !attendanceResponse.ok) {
+            throw new Error("Could not retrieve data from the server.");
+        }
+
+        students = await studentResponse.json();
+        records = await attendanceResponse.json();
+
+        displayReports();
+        message.textContent = "Reports loaded successfully.";
+
+    } catch (error) {
+        message.textContent =
+            "Error: " + error.message +
+            "\nCheck that your Node.js server and MongoDB are running.";
+
+        document.getElementById("reportRows").innerHTML =
+            '<tr><td colspan="6">Unable to load reports.</td></tr>';
+    }
+}
+
+function displayReports() {
+    const search = document.getElementById("search").value
+        .trim().toLowerCase();
+
+    const from = document.getElementById("fromDate").value;
+    const to = document.getElementById("toDate").value;
+
+    if (from && to && from > to) {
+        document.getElementById("message").textContent =
+            "The From date must be on or before the To date.";
+        return;
+    }
+
+    const filteredRecords = records.filter(record => {
+        const date = getDate(record);
+        const student = findStudent(record);
+
+        if (!student) return false;
+
+        const matchesSearch =
+            String(student.rollNumber).toLowerCase().includes(search) ||
+            String(student.name).toLowerCase().includes(search);
+
+        return matchesSearch &&
+            (!from || date >= from) &&
+            (!to || date <= to);
+    });
+
+    const presentCount = filteredRecords.filter(
+        r => r.status === "Present"
+    ).length;
+
+    const absentCount = filteredRecords.filter(
+        r => r.status === "Absent"
+    ).length;
+
+    document.getElementById("total").textContent =
+        filteredRecords.length;
+    document.getElementById("present").textContent = presentCount;
+    document.getElementById("absent").textContent = absentCount;
+
+    const matchingStudents = students.filter(student =>
+        (
+            String(student.name) + " " +
+            String(student.rollNumber)
+        ).toLowerCase().includes(search)
+    );
+
+    const rows = matchingStudents.map(student => {
+        const studentRecords = filteredRecords.filter(record => {
+            const matchedStudent = findStudent(record);
+            return matchedStudent &&
+                String(matchedStudent.studentId) === String(student.studentId);
+        });
+
+        const present = studentRecords.filter(
+            r => r.status === "Present"
+        ).length;
+
+        const absent = studentRecords.filter(
+            r => r.status === "Absent"
+        ).length;
+
+        const total = present + absent;
+        const percentage = total === 0 ? 0 : (present / total) * 100;
+
+        return `
+            <tr>
+                <td>${safe(student.rollNumber)}</td>
+                <td>${safe(student.name)}</td>
+                <td>${present}</td>
+                <td>${absent}</td>
+                <td>${total}</td>
+                <td>${percentage.toFixed(1)}%</td>
+            </tr>
+        `;
+    });
+
+    document.getElementById("reportRows").innerHTML = rows.length
+        ? rows.join("")
+        : '<tr><td colspan="6">No matching students found.</td></tr>';
+}
+
+function clearFilters() {
+    document.getElementById("search").value = "";
+    document.getElementById("fromDate").value = "";
+    document.getElementById("toDate").value = "";
+    displayReports();
+}
+
+document.getElementById("searchButton")
+    .addEventListener("click", displayReports);
+
+document.getElementById("clearButton")
+    .addEventListener("click", clearFilters);
+
+document.getElementById("search")
+    .addEventListener("input", displayReports);
+
+loadReports();
+</script>
+</body>
+</html>

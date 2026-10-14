@@ -1,0 +1,863 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AttendEase | Dashboard</title>
+
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --navy: #172554;
+            --green: #15803d;
+            --red: #b91c1c;
+            --text: #172033;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --background: #f5f7fb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--background);
+            color: var(--text);
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 235px;
+            flex-shrink: 0;
+            padding: 26px 17px;
+            background: var(--navy);
+            color: white;
+        }
+
+        .brand {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 35px;
+        }
+
+        .brand span {
+            color: #a5b4fc;
+        }
+
+        .nav-label {
+            margin: 18px 10px 12px;
+            color: #a5b4fc;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 13px;
+            margin: 5px 0;
+            border-radius: 9px;
+            text-decoration: none;
+            color: #e2e8f0;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .main {
+            flex: 1;
+            min-width: 0;
+            padding: 30px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 30px;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .subtitle {
+            margin: 8px 0 0;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 9px;
+        }
+
+        .button {
+            display: inline-block;
+            border: none;
+            border-radius: 9px;
+            padding: 11px 15px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .secondary {
+            background: white;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .button:disabled {
+            opacity: .55;
+            cursor: wait;
+        }
+
+        .message {
+            margin-bottom: 22px;
+            padding: 13px 16px;
+            border: 1px solid #c7d2fe;
+            border-radius: 10px;
+            background: #eef2ff;
+            color: #3730a3;
+            line-height: 1.5;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card,
+        .panel {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: 0 5px 20px rgba(15, 23, 42, .04);
+        }
+
+        .stat-card {
+            padding: 22px;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .stat-number {
+            margin-top: 13px;
+            font-size: 32px;
+            font-weight: 800;
+        }
+
+        .panel {
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 21px 23px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-description {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .filter {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: white;
+            color: var(--text);
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background: #f8fafc;
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        th, td {
+            padding: 15px 22px;
+            border-bottom: 1px solid #f1f5f9;
+            white-space: nowrap;
+        }
+
+        tbody tr:hover {
+            background: #fafbff;
+        }
+
+        .student-name {
+            font-weight: 700;
+        }
+
+        .small {
+            display: block;
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .present-btn,
+        .absent-btn {
+            padding: 9px 11px;
+            margin: 2px 4px 2px 0;
+            border: 0;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .present-btn {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .absent-btn {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 20px;
+            background: #eef2ff;
+            color: #4338ca;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .empty {
+            padding: 30px;
+            text-align: center;
+            color: var(--muted);
+            white-space: normal;
+        }
+
+        .footer {
+            padding: 10px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        @media (max-width: 850px) {
+            .sidebar {
+                width: 190px;
+            }
+
+            .main {
+                padding: 20px;
+            }
+
+            .stats {
+                gap: 10px;
+            }
+
+            .stat-card {
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .layout {
+                display: block;
+            }
+
+            .sidebar {
+                width: 100%;
+                padding: 16px;
+            }
+
+            .brand {
+                margin-bottom: 15px;
+            }
+
+            .nav-label {
+                display: none;
+            }
+
+            .nav-link {
+                display: inline-block;
+                margin: 3px;
+            }
+
+            .main {
+                padding: 16px;
+            }
+
+            h1 {
+                font-size: 25px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            th, td {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="layout">
+
+    <aside class="sidebar">
+        <div class="brand">Attend<span>Ease</span></div>
+
+        <div class="nav-label">Workspace</div>
+        <a class="nav-link active" href="dashboard.html">▦ Dashboard</a>
+        <a class="nav-link" href="add-student.html">＋ Add Student</a>
+        <a class="nav-link" href="reports.html">▤ Reports</a>
+
+        <div class="nav-label">System</div>
+        <a class="nav-link" href="index.html">↪ Home</a>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <div>
+                <h1>Attendance Dashboard</h1>
+                <p class="subtitle">
+                    Manage students and monitor daily attendance.
+                </p>
+            </div>
+
+            <div class="actions">
+                <span class="button secondary" id="todayDate"></span>
+                <button class="button secondary" id="refreshButton"
+                        type="button">↻ Refresh</button>
+                <a class="button primary" href="add-student.html">
+                    + Add Student
+                </a>
+            </div>
+        </header>
+
+        <div class="message" id="statusMessage" role="status"
+             aria-live="polite">
+            Connecting to server...
+        </div>
+
+        <section class="stats">
+            <article class="stat-card">
+                <div class="stat-label">Total Students</div>
+                <div class="stat-number" id="totalCount">0</div>
+            </article>
+
+            <article class="stat-card">
+                <div class="stat-label">Present Today</div>
+                <div class="stat-number" id="presentCount">0</div>
+            </article>
+
+            <article class="stat-card">
+                <div class="stat-label">Absent Today</div>
+                <div class="stat-number" id="absentCount">0</div>
+            </article>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Student Attendance</h2>
+                    <p class="panel-description">
+                        Choose a class and mark attendance.
+                    </p>
+                </div>
+
+                <div class="filter">
+                    <label for="classFilter">Filter class:</label>
+                    <select id="classFilter">
+                        <option value="ALL">All Classes</option>
+                        <option value="CSE-A">CSE-A</option>
+                        <option value="CSE-B">CSE-B</option>
+                        <option value="CSM-A">CSM-A</option>
+                        <option value="CSM-B">CSM-B</option>
+                        <option value="CSD-A">CSD-A</option>
+                        <option value="CSD-B">CSD-B</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Roll Number</th>
+                            <th>Student</th>
+                            <th>Attendance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentList">
+                        <tr>
+                            <td class="empty" colspan="3">
+                                Loading students...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Parent Notification History</h2>
+                    <p class="panel-description">
+                        Absence records and their notification status.
+                    </p>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Roll Number</th>
+                            <th>Student</th>
+                            <th>Date</th>
+                            <th>Notification</th>
+                        </tr>
+                    </thead>
+                    <tbody id="notificationHistory">
+                        <tr>
+                            <td class="empty" colspan="4">Loading history...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="footer">
+            AttendEase · Student Attendance and Parent Notification System
+        </footer>
+    </main>
+</div>
+
+<script>
+"use strict";
+
+/*
+  Keep dashboard.html in the same folder as server.js.
+  Open it using http://localhost:3000/dashboard.html
+*/
+const API_URL = "http://localhost:3000";
+
+let allStudents = [];
+let students = [];
+let attendanceByStudent = {};
+let attendanceRecords = [];
+const busyStudents = new Set();
+
+function getToday() {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+const today = getToday();
+document.getElementById("todayDate").textContent = today;
+
+function normalize(value) {
+    return String(value ?? "").trim().toUpperCase();
+}
+
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+}
+
+function setMessage(message) {
+    document.getElementById("statusMessage").textContent = message;
+}
+
+async function getJSON(url, options = {}) {
+    const response = await fetch(url, {
+        cache: "no-store",
+        ...options,
+        headers: {
+            "Accept": "application/json",
+            ...(options.headers || {})
+        }
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+
+    if (!contentType.includes("application/json")) {
+        throw new Error(
+            `Expected JSON from ${url}. Check your server.js endpoint.`
+        );
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            data.message || data.error || `Request failed: ${response.status}`
+        );
+    }
+
+    return data;
+}
+
+function findStudentForRecord(record) {
+    let id = record.studentId;
+
+    if (id && typeof id === "object") {
+        id = id.studentId ?? String(id);
+    }
+
+    return allStudents.find(student =>
+        String(student.id) === String(id)
+    );
+}
+
+/* LOAD STUDENTS */
+async function loadStudents() {
+    const tbody = document.getElementById("studentList");
+
+    setMessage("Loading students from the server...");
+
+    try {
+        const data = await getJSON(`${API_URL}/students`);
+
+        if (!Array.isArray(data)) {
+            throw new Error("The students API did not return a list.");
+        }
+
+        allStudents = data.map(student => ({
+            id: String(student.studentId ?? ""),
+            name: String(student.name ?? ""),
+            roll: String(student.rollNumber ?? ""),
+            classId: normalize(student.classId)
+        }));
+
+        displayStudents();
+        await loadAttendance();
+
+        if (allStudents.length === 0) {
+            setMessage("No students found. Add a student to get started.");
+        } else {
+            setMessage(`Loaded ${allStudents.length} student(s) successfully.`);
+        }
+    } catch (error) {
+        tbody.innerHTML = `
+            <tr>
+                <td class="empty" colspan="3">
+                    ${escapeHTML(error.message)}
+                </td>
+            </tr>
+        `;
+
+        setMessage("Student loading failed: " + error.message);
+    }
+}
+
+/* FILTER AND DISPLAY STUDENTS */
+function displayStudents() {
+    const tbody = document.getElementById("studentList");
+    const selectedClass = normalize(
+        document.getElementById("classFilter").value
+    );
+
+    students = allStudents.filter(student =>
+        selectedClass === "ALL" ||
+        normalize(student.classId) === selectedClass
+    );
+
+    if (students.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td class="empty" colspan="3">
+                    No students found in this class.
+                    Try selecting All Classes.
+                </td>
+            </tr>
+        `;
+
+        updateCounts();
+        return;
+    }
+
+    tbody.innerHTML = students.map(student => `
+        <tr>
+            <td>${escapeHTML(student.roll)}</td>
+            <td>
+                <span class="student-name">${escapeHTML(student.name)}</span>
+                <span class="small">
+                    ID: ${escapeHTML(student.id)}
+                    · Class: ${escapeHTML(student.classId || "Not specified")}
+                </span>
+            </td>
+            <td>
+                <button type="button"
+                    class="present-btn"
+                    data-id="${escapeHTML(student.id)}"
+                    data-status="Present">✓ Present</button>
+
+                <button type="button"
+                    class="absent-btn"
+                    data-id="${escapeHTML(student.id)}"
+                    data-status="Absent">✕ Absent</button>
+
+                <span class="small" id="status-${encodeURIComponent(student.id)}">
+                    ${escapeHTML(attendanceByStudent[student.id] || "Not marked")}
+                </span>
+            </td>
+        </tr>
+    `).join("");
+
+    tbody.querySelectorAll("button[data-id]").forEach(button => {
+        button.addEventListener("click", () => {
+            markAttendance(button.dataset.id, button.dataset.status);
+        });
+    });
+
+    students.forEach(updateStudentStatus);
+    updateCounts();
+}
+
+/* UPDATE ONE STUDENT'S STATUS */
+function updateStudentStatus(student) {
+    const statusElement = document.getElementById(
+        "status-" + encodeURIComponent(student.id)
+    );
+
+    if (statusElement) {
+        statusElement.textContent =
+            attendanceByStudent[student.id] || "Not marked";
+    }
+
+    document.querySelectorAll("button[data-id]").forEach(button => {
+        if (button.dataset.id === student.id) {
+            button.disabled = busyStudents.has(student.id);
+        }
+    });
+}
+
+/* UPDATE SUMMARY CARDS */
+function updateCounts() {
+    let present = 0;
+    let absent = 0;
+
+    students.forEach(student => {
+        if (attendanceByStudent[student.id] === "Present") present++;
+        if (attendanceByStudent[student.id] === "Absent") absent++;
+    });
+
+    document.getElementById("totalCount").textContent = students.length;
+    document.getElementById("presentCount").textContent = present;
+    document.getElementById("absentCount").textContent = absent;
+}
+
+/* LOAD ATTENDANCE AND NOTIFICATION HISTORY */
+async function loadAttendance() {
+    try {
+        const records = await getJSON(`${API_URL}/attendance`);
+
+        if (!Array.isArray(records)) {
+            throw new Error("The attendance API did not return a list.");
+        }
+
+        attendanceRecords = records;
+        attendanceByStudent = {};
+
+        records.forEach(record => {
+            const recordDate = String(record.date ?? "").slice(0, 10);
+
+            if (recordDate !== today) return;
+
+            const student = findStudentForRecord(record);
+
+            if (student) {
+                attendanceByStudent[student.id] = record.status;
+            }
+        });
+
+        students.forEach(updateStudentStatus);
+        updateCounts();
+        renderNotificationHistory();
+
+    } catch (error) {
+        setMessage("Attendance loading failed: " + error.message);
+    }
+}
+
+/* SHOW ABSENT RECORDS */
+function renderNotificationHistory() {
+    const tbody = document.getElementById("notificationHistory");
+    const selectedClass = normalize(
+        document.getElementById("classFilter").value
+    );
+
+    const absentRecords = attendanceRecords.filter(record => {
+        if (record.status !== "Absent") return false;
+
+        const student = findStudentForRecord(record);
+
+        return student && (
+            selectedClass === "ALL" ||
+            normalize(student.classId) === selectedClass
+        );
+    });
+
+    if (absentRecords.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td class="empty" colspan="4">
+                    No absence records found for this class.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    absentRecords.sort((a, b) =>
+        String(b.date).localeCompare(String(a.date))
+    );
+
+    tbody.innerHTML = absentRecords.map(record => {
+        const student = findStudentForRecord(record);
+
+        return `
+            <tr>
+                <td>${escapeHTML(student.roll)}</td>
+                <td>${escapeHTML(student.name)}</td>
+                <td>${escapeHTML(String(record.date).slice(0, 10))}</td>
+                <td>
+                    <span class="badge">
+                        ${escapeHTML(record.notificationStatus || "Pending")}
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join("");
+}
+
+/* MARK ATTENDANCE */
+async function markAttendance(studentId, status) {
+    const student = allStudents.find(item =>
+        item.id === String(studentId)
+    );
+
+    if (!student || busyStudents.has(student.id)) return;
+
+    busyStudents.add(student.id);
+    updateStudentStatus(student);
+    setMessage(`Saving ${status.toLowerCase()} attendance for ${student.name}...`);
+
+    try {
+        const result = await getJSON(`${API_URL}/attendance`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                studentId: student.id,
+                date: today,
+                status,
+                markedBy: "faculty"
+            })
+        });
+
+        attendanceByStudent[student.id] = status;
+        updateCounts();
+
+        setMessage(
+            result.message ||
+            `${student.name}'s attendance was marked ${status.toLowerCase()}.`
+        );
+
+        await loadAttendance();
+
+    } catch (error) {
+        setMessage("Could not save attendance: " + error.message);
+    } finally {
+        busyStudents.delete(student.id);
+        updateStudentStatus(student);
+    }
+}
+
+/* FILTER, REFRESH, INITIAL LOAD */
+document.getElementById("classFilter").addEventListener("change", () => {
+    displayStudents();
+    updateCounts();
+    renderNotificationHistory();
+});
+
+document.getElementById("refreshButton").addEventListener("click", () => {
+    loadStudents();
+});
+
+loadStudents();
+</script>
+</body>
+</html>

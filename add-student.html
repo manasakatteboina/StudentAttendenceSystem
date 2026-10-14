@@ -1,0 +1,411 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Students | Student Attendance System</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 25px;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 25px auto;
+            padding: 28px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 5px 20px #00000012;
+        }
+
+        h1, h2 { color: #4f46e5; }
+        h1 { margin-top: 0; }
+
+        .subtitle { color: #64748b; margin-bottom: 25px; }
+
+        label {
+            display: block;
+            margin: 15px 0 6px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 15px;
+            background: white;
+        }
+
+        input:focus, select:focus {
+            outline: 2px solid #a5b4fc;
+            border-color: #4f46e5;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 22px;
+        }
+
+        button, .back-link {
+            padding: 11px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-block;
+        }
+
+        .save-btn { background: #4f46e5; color: white; }
+        .back-link { background: #e2e8f0; color: #1e293b; }
+        .refresh-btn { background: #dbeafe; color: #1d4ed8; }
+        .delete-btn { background: #dc2626; color: white; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        #message, #listMessage {
+            margin-top: 18px;
+            padding: 12px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+
+        #message:empty, #listMessage:empty { display: none; }
+        .success { background: #dcfce7; color: #166534; }
+        .error { background: #fee2e2; color: #991b1b; }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+
+        th { background: #4f46e5; color: white; }
+        tr:hover td { background: #f8fafc; }
+
+        .section { margin-top: 35px; }
+
+        @media (max-width: 600px) {
+            body { padding: 12px; }
+            .container { margin: 12px auto; padding: 18px; }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <h1>Add New Student</h1>
+    <p class="subtitle">
+        Register a student and manage existing student records.
+    </p>
+
+    <form id="studentForm">
+        <label for="studentId">Student ID *</label>
+        <input id="studentId" name="studentId"
+               placeholder="Example: STU106" required>
+
+        <label for="name">Student Name *</label>
+        <input id="name" name="name"
+               placeholder="Enter full name" required>
+
+        <label for="rollNumber">Roll Number *</label>
+        <input id="rollNumber" name="rollNumber"
+               placeholder="Example: 106" required>
+
+        <label for="classId">Select Class *</label>
+        <select id="classId" name="classId" required>
+            <option value="">Choose a class</option>
+            <option value="CSE-A">CSE-A</option>
+            <option value="CSE-B">CSE-B</option>
+            <option value="CSM-A">CSM-A</option>
+            <option value="CSM-B">CSM-B</option>
+            <option value="CSD-A">CSD-A</option>
+            <option value="CSD-B">CSD-B</option>
+        </select>
+
+        <label for="parentName">Parent Name *</label>
+        <input id="parentName" name="parentName"
+               placeholder="Enter parent name" required>
+
+        <label for="parentPhone">Parent Phone *</label>
+        <input id="parentPhone" name="parentPhone"
+               type="tel" placeholder="Enter parent phone" required>
+
+        <label for="parentEmail">Parent Email (optional)</label>
+        <input id="parentEmail" name="parentEmail"
+               type="email" placeholder="Enter parent email">
+
+        <div class="actions">
+            <button class="save-btn" id="saveButton" type="submit">
+                Save Student
+            </button>
+            <a class="back-link" href="dashboard.html">
+                Back to Dashboard
+            </a>
+        </div>
+    </form>
+
+    <p id="message" role="status" aria-live="polite"></p>
+
+    <div class="section">
+        <h2>Manage Students</h2>
+        <p class="subtitle">
+            View registered students and delete a student when necessary.
+            Deleting also removes that student's attendance records.
+        </p>
+
+        <button class="refresh-btn" id="refreshButton" type="button">
+            Refresh Student List
+        </button>
+
+        <p id="listMessage" role="status" aria-live="polite"></p>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Roll No.</th>
+                    <th>Name</th>
+                    <th>Class</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="studentList">
+                    <tr>
+                        <td colspan="5">Loading students...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+// Use the same origin as the page, so this works on localhost
+// and when the website is deployed.
+const API_URL = "http://localhost:3000";
+const form = document.getElementById("studentForm");
+const message = document.getElementById("message");
+const saveButton = document.getElementById("saveButton");
+const studentList = document.getElementById("studentList");
+const listMessage = document.getElementById("listMessage");
+const refreshButton = document.getElementById("refreshButton");
+
+function showMessage(element, text, type) {
+    element.textContent = text;
+    element.className = type;
+}
+
+async function readResponse(response) {
+    const result = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            result.message || result.error || "Request failed."
+        );
+    }
+
+    return result;
+}
+
+// Add a student
+form.addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    message.textContent = "";
+    message.className = "";
+    saveButton.disabled = true;
+    saveButton.textContent = "Saving...";
+
+    const student = {
+        studentId: form.elements["studentId"].value.trim(),
+        name: form.elements["name"].value.trim(),
+        rollNumber: form.elements["rollNumber"].value.trim(),
+        classId: form.elements["classId"].value,
+        parentName: form.elements["parentName"].value.trim(),
+        parentPhone: form.elements["parentPhone"].value.trim(),
+        parentEmail: form.elements["parentEmail"].value.trim()
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/students`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(student)
+        });
+
+        await readResponse(response);
+
+        showMessage(
+            message,
+            `Student ${student.name} added successfully!`,
+            "success"
+        );
+
+        form.reset();
+        await loadStudents();
+    } catch (error) {
+        showMessage(
+            message,
+            "Could not add student: " + error.message,
+            "error"
+        );
+    } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = "Save Student";
+    }
+});
+
+// Load students from MongoDB through the backend
+async function loadStudents() {
+    refreshButton.disabled = true;
+    studentList.replaceChildren();
+
+    const loadingRow = document.createElement("tr");
+    const loadingCell = document.createElement("td");
+    loadingCell.colSpan = 5;
+    loadingCell.textContent = "Loading students...";
+    loadingRow.appendChild(loadingCell);
+    studentList.appendChild(loadingRow);
+
+    try {
+        const response = await fetch(`${API_URL}/students`);
+        const students = await readResponse(response);
+
+        studentList.replaceChildren();
+
+        if (!Array.isArray(students) || students.length === 0) {
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+            cell.colSpan = 5;
+            cell.textContent = "No students registered yet.";
+            row.appendChild(cell);
+            studentList.appendChild(row);
+            listMessage.textContent = "";
+            listMessage.className = "";
+            return;
+        }
+
+        for (const student of students) {
+            const row = document.createElement("tr");
+
+            const values = [
+                student.studentId,
+                student.rollNumber,
+                student.name,
+                student.classId
+            ];
+
+            for (const value of values) {
+                const cell = document.createElement("td");
+                cell.textContent = value ?? "";
+                row.appendChild(cell);
+            }
+
+            const actionCell = document.createElement("td");
+            const deleteButton = document.createElement("button");
+
+            deleteButton.type = "button";
+            deleteButton.textContent = "Delete";
+            deleteButton.className = "delete-btn";
+
+            deleteButton.addEventListener("click", function() {
+                deleteStudent(student.studentId, deleteButton);
+            });
+
+            actionCell.appendChild(deleteButton);
+            row.appendChild(actionCell);
+            studentList.appendChild(row);
+        }
+
+        listMessage.textContent = "";
+        listMessage.className = "";
+    } catch (error) {
+        studentList.replaceChildren();
+
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 5;
+        cell.textContent = "Could not load students.";
+        row.appendChild(cell);
+        studentList.appendChild(row);
+
+        showMessage(
+            listMessage,
+            error.message + " Check that the backend is running.",
+            "error"
+        );
+    } finally {
+        refreshButton.disabled = false;
+    }
+}
+
+// Delete a student using the actual studentId from MongoDB
+async function deleteStudent(studentId, button) {
+    const confirmed = confirm(
+        `Delete student ${studentId}?\n\n` +
+        "This permanently deletes the student and all their attendance records."
+    );
+
+    if (!confirmed) return;
+
+    button.disabled = true;
+    button.textContent = "Deleting...";
+
+    try {
+        const response = await fetch(
+            `${API_URL}/students/${encodeURIComponent(studentId)}`,
+            { method: "DELETE" }
+        );
+
+        const result = await readResponse(response);
+
+        showMessage(
+            listMessage,
+            result.message || "Student deleted successfully.",
+            "success"
+        );
+
+        await loadStudents();
+    } catch (error) {
+        showMessage(
+            listMessage,
+            "Could not delete student: " + error.message,
+            "error"
+        );
+
+        button.disabled = false;
+        button.textContent = "Delete";
+    }
+}
+
+refreshButton.addEventListener("click", loadStudents);
+
+// Load the student list when the page opens
+loadStudents();
+</script>
+</body>
+</html>
+ss
