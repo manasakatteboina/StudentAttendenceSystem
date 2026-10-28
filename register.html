@@ -1,10 +1,11 @@
- 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Faculty Registration | Student Attendance Management System</title>
+
+    <title>Faculty Registration | AttendEase</title>
 
     <link rel="stylesheet" href="style.css">
 
@@ -50,6 +51,7 @@
             text-align: center;
             color: #666;
             font-size: 14px;
+            line-height: 1.5;
             margin-bottom: 28px;
         }
 
@@ -57,7 +59,7 @@
             margin-bottom: 18px;
         }
 
-        label {
+        .form-group label {
             display: block;
             margin-bottom: 7px;
             font-weight: bold;
@@ -65,7 +67,7 @@
             color: #333;
         }
 
-        input {
+        .form-group input {
             width: 100%;
             padding: 12px;
             border: 1px solid #ccd3df;
@@ -73,7 +75,7 @@
             font-size: 15px;
         }
 
-        input:focus {
+        .form-group input:focus {
             outline: none;
             border-color: #2563eb;
             box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
@@ -89,7 +91,6 @@
         }
 
         .show-password input {
-            width: auto;
             margin: 0;
         }
 
@@ -184,7 +185,7 @@
                     type="password"
                     id="password"
                     name="password"
-                    placeholder="Create a password (minimum 8 characters)"
+                    placeholder="Minimum 8 characters"
                     autocomplete="new-password"
                     minlength="8"
                     required
@@ -223,7 +224,7 @@
 
         <p class="login-link">
             Already have an account?
-            <a href="index.html">Sign in</a>
+            <a href="/index.html">Sign in</a>
         </p>
 
     </main>
@@ -249,7 +250,7 @@
             confirmPasswordInput.type = fieldType;
         });
 
-        // Display a message to the user
+        // Display a message
         function showMessage(text, color = "#d93025") {
             message.textContent = text;
             message.style.color = color;
@@ -258,7 +259,6 @@
         // Handle faculty registration
         registerForm.addEventListener("submit", async function (event) {
             event.preventDefault();
-
             showMessage("");
 
             const name = nameInput.value.trim();
@@ -287,7 +287,7 @@
             registerButton.textContent = "Creating Account...";
 
             try {
-                // Send the registration request to the Express backend
+                // The page and API are served from the same Render website.
                 const response = await fetch("/register", {
                     method: "POST",
                     headers: {
@@ -300,28 +300,26 @@
                     })
                 });
 
-                // Read the response safely before parsing JSON
                 const responseText = await response.text();
-
                 let result;
 
                 try {
                     result = JSON.parse(responseText);
                 } catch (parseError) {
                     console.error(
-                        "Registration response was not valid JSON:",
+                        "Invalid server response:",
                         response.status,
                         responseText
                     );
 
                     if (response.status === 404) {
                         throw new Error(
-                            "Registration endpoint not found. Open this page through your backend at http://localhost:3000/register.html."
+                            "Registration endpoint not found. Check the backend route."
                         );
                     }
 
                     throw new Error(
-                        "The server returned an empty or invalid response. Check the VS Code terminal."
+                        "The server returned an invalid response. Please try again."
                     );
                 }
 
@@ -349,7 +347,7 @@
 
                 if (error.message === "Failed to fetch") {
                     showMessage(
-                        "Cannot connect to the backend. Make sure your server is running."
+                        "Cannot connect to the backend. Please check your connection."
                     );
                 } else {
                     showMessage(error.message);
