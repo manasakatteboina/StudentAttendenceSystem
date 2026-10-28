@@ -544,30 +544,53 @@ app.get("/attendance", async (req, res) => {
       date: -1,
     });
 
-    // Attach student details without populate because Attendance.studentId
-    // is a String field, not a Mongoose ObjectId reference.
-    const studentIds = [
-      ...new Set(records.map((record) => record.studentId)),
-    ];
+    // Attach student details using MongoDB ID or custom student ID
+const studentIds = [
+  ...new Set(
+    records.map((record) => String(record.studentId))
+  ),
+];
 
-    const students = await Student.find({
-      _id: { $in: studentIds },
-    });
+const objectIds = studentIds.filter((id) =>
+  mongoose.isValidObjectId(id)
+);
 
-    const studentMap = new Map(
-      students.map((student) => [
-        student._id.toString(),
-        student,
-      ])
-    );
+const customIds = studentIds.filter(
+  (id) => !mongoose.isValidObjectId(id)
+);
 
-    const results = records.map((record) => ({
-      ...record.toObject(),
-      student:
-        studentMap.get(record.studentId) || null,
-    }));
+const studentConditions = [];
 
-    return res.json(results);
+if (objectIds.length > 0) {
+  studentConditions.push({
+    _id: { $in: objectIds },
+  });
+}
+
+if (customIds.length > 0) {
+  studentConditions.push({
+    studentId: { $in: customIds },
+  });
+}
+
+const students =
+  studentConditions.length > 0
+    ? await Student.find({ $or: studentConditions })
+    : [];
+
+const studentMap = new Map();
+
+for (const student of students) {
+  studentMap.set(String(student._id), student);
+  studentMap.set(String(student.studentId), student);
+}
+
+const results = records.map((record) => ({
+  ...record.toObject(),
+  student: studentMap.get(String(record.studentId)) || null,
+}));
+
+return res.json(results);
   } catch (error) {
     console.error("Fetch attendance error:", error);
 
