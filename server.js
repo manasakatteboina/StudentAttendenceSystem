@@ -554,6 +554,51 @@ const studentIds = [
 const objectIds = studentIds.filter((id) =>
   mongoose.isValidObjectId(id)
 );
+const customIds = studentIds.filter(
+  (id) => !mongoose.isValidObjectId(id)
+);
+
+const studentConditions = [];
+
+if (objectIds.length > 0) {
+  studentConditions.push({
+    _id: { $in: objectIds },
+  });
+}
+
+if (customIds.length > 0) {
+  studentConditions.push({
+    studentId: { $in: customIds },
+  });
+}
+
+const students =
+  studentConditions.length > 0
+    ? await Student.find({ $or: studentConditions })
+    : [];
+
+const studentMap = new Map();
+
+for (const student of students) {
+  studentMap.set(String(student._id), student);
+  studentMap.set(String(student.studentId), student);
+}
+
+const results = records.map((record) => ({
+  ...record.toObject(),
+  student: studentMap.get(String(record.studentId)) || null,
+}));
+
+return res.json(results);
+} catch (error) {
+  console.error("Fetch attendance error:", error);
+
+  return res.status(500).json({
+    message: "Could not fetch attendance records.",
+    error: error.message,
+  });
+}
+});
 
 const customIds = studentIds.filter(
   (id) => !mongoose.isValidObjectId(id)
