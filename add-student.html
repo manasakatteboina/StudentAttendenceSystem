@@ -4,10 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Students | Student Attendance System</title>
+    <title>Add Student | AttendEase</title>
 
     <style>
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
@@ -19,17 +21,21 @@
 
         .container {
             max-width: 1000px;
-            margin: 25px auto;
+            margin: 20px auto;
             padding: 28px;
             background: white;
             border-radius: 16px;
             box-shadow: 0 5px 20px #00000012;
         }
 
-        h1, h2 { color: #4f46e5; }
-        h1 { margin-top: 0; }
+        h1, h2 {
+            color: #4f46e5;
+        }
 
-        .subtitle { color: #64748b; margin-bottom: 25px; }
+        .subtitle {
+            color: #64748b;
+            line-height: 1.6;
+        }
 
         label {
             display: block;
@@ -68,24 +74,56 @@
             display: inline-block;
         }
 
-        .save-btn { background: #4f46e5; color: white; }
-        .back-link { background: #e2e8f0; color: #1e293b; }
-        .refresh-btn { background: #dbeafe; color: #1d4ed8; }
-        .delete-btn { background: #dc2626; color: white; }
-        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .save-btn {
+            background: #4f46e5;
+            color: white;
+        }
 
-        #message, #listMessage {
+        .back-link {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .refresh-btn {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .delete-btn {
+            background: #dc2626;
+            color: white;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .message {
             margin-top: 18px;
             padding: 12px;
             border-radius: 8px;
             white-space: pre-wrap;
+            overflow-wrap: anywhere;
         }
 
-        #message:empty, #listMessage:empty { display: none; }
-        .success { background: #dcfce7; color: #166534; }
-        .error { background: #fee2e2; color: #991b1b; }
+        .success {
+            background: #dcfce7;
+            color: #166534;
+        }
 
-        .table-wrapper { overflow-x: auto; }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .section {
+            margin-top: 35px;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
 
         table {
             width: 100%;
@@ -99,37 +137,57 @@
             text-align: left;
         }
 
-        th { background: #4f46e5; color: white; }
-        tr:hover td { background: #f8fafc; }
-
-        .section { margin-top: 35px; }
+        th {
+            background: #4f46e5;
+            color: white;
+        }
 
         @media (max-width: 600px) {
-            body { padding: 12px; }
-            .container { margin: 12px auto; padding: 18px; }
+            body {
+                padding: 12px;
+            }
+
+            .container {
+                padding: 18px;
+            }
         }
     </style>
 </head>
 
 <body>
 <div class="container">
+
     <h1>Add New Student</h1>
+
     <p class="subtitle">
-        Register a student and manage existing student records.
+        Register students and manage existing student records.
     </p>
 
     <form id="studentForm">
+
         <label for="studentId">Student ID *</label>
-        <input id="studentId" name="studentId"
-               placeholder="Example: STU106" required>
+        <input
+            id="studentId"
+            name="studentId"
+            placeholder="Example: 112"
+            required
+        >
 
         <label for="name">Student Name *</label>
-        <input id="name" name="name"
-               placeholder="Enter full name" required>
+        <input
+            id="name"
+            name="name"
+            placeholder="Enter full name"
+            required
+        >
 
         <label for="rollNumber">Roll Number *</label>
-        <input id="rollNumber" name="rollNumber"
-               placeholder="Example: 106" required>
+        <input
+            id="rollNumber"
+            name="rollNumber"
+            placeholder="Example: 24-92"
+            required
+        >
 
         <label for="classId">Select Class *</label>
         <select id="classId" name="classId" required>
@@ -143,21 +201,39 @@
         </select>
 
         <label for="parentName">Parent Name *</label>
-        <input id="parentName" name="parentName"
-               placeholder="Enter parent name" required>
+        <input
+            id="parentName"
+            name="parentName"
+            placeholder="Enter parent name"
+            required
+        >
 
         <label for="parentPhone">Parent Phone *</label>
-        <input id="parentPhone" name="parentPhone"
-               type="tel" placeholder="Enter parent phone" required>
+        <input
+            id="parentPhone"
+            name="parentPhone"
+            type="tel"
+            placeholder="Enter parent phone"
+            required
+        >
 
         <label for="parentEmail">Parent Email (optional)</label>
-        <input id="parentEmail" name="parentEmail"
-               type="email" placeholder="Enter parent email">
+        <input
+            id="parentEmail"
+            name="parentEmail"
+            type="email"
+            placeholder="Enter parent email"
+        >
 
         <div class="actions">
-            <button class="save-btn" id="saveButton" type="submit">
+            <button
+                class="save-btn"
+                id="saveButton"
+                type="submit"
+            >
                 Save Student
             </button>
+
             <a class="back-link" href="dashboard.html">
                 Back to Dashboard
             </a>
@@ -167,13 +243,18 @@
     <p id="message" role="status" aria-live="polite"></p>
 
     <div class="section">
+
         <h2>Manage Students</h2>
+
         <p class="subtitle">
             View registered students and delete a student when necessary.
-            Deleting also removes that student's attendance records.
         </p>
 
-        <button class="refresh-btn" id="refreshButton" type="button">
+        <button
+            class="refresh-btn"
+            id="refreshButton"
+            type="button"
+        >
             Refresh Student List
         </button>
 
@@ -182,14 +263,15 @@
         <div class="table-wrapper">
             <table>
                 <thead>
-                <tr>
-                    <th>Student ID</th>
-                    <th>Roll No.</th>
-                    <th>Name</th>
-                    <th>Class</th>
-                    <th>Action</th>
-                </tr>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Roll No.</th>
+                        <th>Name</th>
+                        <th>Class</th>
+                        <th>Action</th>
+                    </tr>
                 </thead>
+
                 <tbody id="studentList">
                     <tr>
                         <td colspan="5">Loading students...</td>
@@ -198,14 +280,16 @@
             </table>
         </div>
     </div>
+
 </div>
 
 <script>
 "use strict";
 
-// Use the same origin as the page, so this works on localhost
-// and when the website is deployed.
-const API_URL = "https://studentattendencesystem-h4mq.onrender.com";
+// Your deployed Render backend
+const API_URL =
+    "https://studentattendencesystem-h4mq.onrender.com";
+
 const form = document.getElementById("studentForm");
 const message = document.getElementById("message");
 const saveButton = document.getElementById("saveButton");
@@ -213,17 +297,32 @@ const studentList = document.getElementById("studentList");
 const listMessage = document.getElementById("listMessage");
 const refreshButton = document.getElementById("refreshButton");
 
+// Display success or error messages
 function showMessage(element, text, type) {
     element.textContent = text;
-    element.className = type;
+    element.className = type ? "message " + type : "";
 }
 
+// Read JSON safely and display backend errors
 async function readResponse(response) {
-    const result = await response.json();
+    const text = await response.text();
+
+    let result;
+
+    try {
+        result = text ? JSON.parse(text) : {};
+    } catch {
+        throw new Error(
+            "The server returned an invalid response. HTTP status: " +
+            response.status
+        );
+    }
 
     if (!response.ok) {
         throw new Error(
-            result.message || result.error || "Request failed."
+            result.message ||
+            result.error ||
+            "Request failed. HTTP status: " + response.status
         );
     }
 
@@ -234,10 +333,7 @@ async function readResponse(response) {
 form.addEventListener("submit", async function(event) {
     event.preventDefault();
 
-    message.textContent = "";
-    message.className = "";
-    saveButton.disabled = true;
-    saveButton.textContent = "Saving...";
+    showMessage(message, "", "");
 
     const student = {
         studentId: form.elements["studentId"].value.trim(),
@@ -249,135 +345,167 @@ form.addEventListener("submit", async function(event) {
         parentEmail: form.elements["parentEmail"].value.trim()
     };
 
+    if (
+        !student.studentId ||
+        !student.name ||
+        !student.rollNumber ||
+        !student.classId ||
+        !student.parentName ||
+        !student.parentPhone
+    ) {
+        showMessage(
+            message,
+            "Please fill in all required fields.",
+            "error"
+        );
+        return;
+    }
+
+    saveButton.disabled = true;
+    saveButton.textContent = "Saving...";
+
     try {
-        const response = await fetch(`${API_URL}/students`, {
+        const response = await fetch(API_URL + "/students", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(student)
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(student),
+            cache: "no-store"
         });
 
-        await readResponse(response);
+        const result = await readResponse(response);
 
         showMessage(
             message,
-            `Student ${student.name} added successfully!`,
+            result.message || "Student added successfully!",
             "success"
         );
 
         form.reset();
+
         await loadStudents();
+
     } catch (error) {
+        console.error("Add student error:", error);
+
         showMessage(
             message,
             "Could not add student: " + error.message,
             "error"
         );
+
     } finally {
         saveButton.disabled = false;
         saveButton.textContent = "Save Student";
     }
 });
 
-// Load students from MongoDB through the backend
+// Load all students
 async function loadStudents() {
     refreshButton.disabled = true;
-    studentList.replaceChildren();
-
-    const loadingRow = document.createElement("tr");
-    const loadingCell = document.createElement("td");
-    loadingCell.colSpan = 5;
-    loadingCell.textContent = "Loading students...";
-    loadingRow.appendChild(loadingCell);
-    studentList.appendChild(loadingRow);
+    studentList.innerHTML =
+        '<tr><td colspan="5">Loading students...</td></tr>';
 
     try {
-        const response = await fetch(`${API_URL}/students`);
+        const response = await fetch(API_URL + "/students", {
+            method: "GET",
+            cache: "no-store"
+        });
+
         const students = await readResponse(response);
+
+        if (!Array.isArray(students)) {
+            throw new Error(
+                "The backend did not return a student list."
+            );
+        }
 
         studentList.replaceChildren();
 
-        if (!Array.isArray(students) || students.length === 0) {
-            const row = document.createElement("tr");
-            const cell = document.createElement("td");
-            cell.colSpan = 5;
-            cell.textContent = "No students registered yet.";
-            row.appendChild(cell);
-            studentList.appendChild(row);
-            listMessage.textContent = "";
-            listMessage.className = "";
+        if (students.length === 0) {
+            studentList.innerHTML =
+                '<tr><td colspan="5">No students registered yet.</td></tr>';
+
+            showMessage(listMessage, "", "");
             return;
         }
 
-        for (const student of students) {
+        students.forEach(function(student) {
             const row = document.createElement("tr");
 
-            const values = [
+            [
                 student.studentId,
                 student.rollNumber,
                 student.name,
                 student.classId
-            ];
-
-            for (const value of values) {
+            ].forEach(function(value) {
                 const cell = document.createElement("td");
                 cell.textContent = value ?? "";
                 row.appendChild(cell);
-            }
+            });
 
             const actionCell = document.createElement("td");
             const deleteButton = document.createElement("button");
 
             deleteButton.type = "button";
-            deleteButton.textContent = "Delete";
             deleteButton.className = "delete-btn";
+            deleteButton.textContent = "Delete";
 
             deleteButton.addEventListener("click", function() {
-                deleteStudent(student.studentId, deleteButton);
+                deleteStudent(student._id, deleteButton);
             });
 
             actionCell.appendChild(deleteButton);
             row.appendChild(actionCell);
             studentList.appendChild(row);
-        }
+        });
 
-        listMessage.textContent = "";
-        listMessage.className = "";
+        showMessage(listMessage, "", "");
+
     } catch (error) {
-        studentList.replaceChildren();
+        console.error("Load students error:", error);
 
-        const row = document.createElement("tr");
-        const cell = document.createElement("td");
-        cell.colSpan = 5;
-        cell.textContent = "Could not load students.";
-        row.appendChild(cell);
-        studentList.appendChild(row);
+        studentList.innerHTML =
+            '<tr><td colspan="5">Could not load students.</td></tr>';
 
         showMessage(
             listMessage,
-            error.message + " Check that the backend is running.",
+            "Could not load students: " + error.message,
             "error"
         );
+
     } finally {
         refreshButton.disabled = false;
     }
 }
 
-// Delete a student using the actual studentId from MongoDB
-async function deleteStudent(studentId, button) {
-    const confirmed = confirm(
-        `Delete student ${studentId}?\n\n` +
-        "This permanently deletes the student and all their attendance records."
-    );
+// Delete a student by MongoDB _id
+async function deleteStudent(studentMongoId, button) {
+    if (!studentMongoId) {
+        showMessage(
+            listMessage,
+            "Student database ID is missing.",
+            "error"
+        );
+        return;
+    }
 
-    if (!confirmed) return;
+    if (!confirm("Are you sure you want to delete this student?")) {
+        return;
+    }
 
     button.disabled = true;
     button.textContent = "Deleting...";
 
     try {
         const response = await fetch(
-            `${API_URL}/students/${encodeURIComponent(studentId)}`,
-            { method: "DELETE" }
+            API_URL + "/students/" +
+            encodeURIComponent(studentMongoId),
+            {
+                method: "DELETE",
+                cache: "no-store"
+            }
         );
 
         const result = await readResponse(response);
@@ -389,7 +517,10 @@ async function deleteStudent(studentId, button) {
         );
 
         await loadStudents();
+
     } catch (error) {
+        console.error("Delete student error:", error);
+
         showMessage(
             listMessage,
             "Could not delete student: " + error.message,
@@ -401,11 +532,12 @@ async function deleteStudent(studentId, button) {
     }
 }
 
+// Refresh student list
 refreshButton.addEventListener("click", loadStudents);
 
-// Load the student list when the page opens
+// Load student list when page opens
 loadStudents();
 </script>
+
 </body>
 </html>
-ss
