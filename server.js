@@ -496,9 +496,10 @@ app.post("/attendance", async (req, res) => {
   }
 });
 
-// ==============================
-// GET ATTENDANCE RECORDS
-// ==============================
+
+ // ==============================
+ // GET ATTENDANCE RECORDS
+ // ==============================
 app.get("/attendance", async (req, res) => {
   try {
     const filter = {};
@@ -544,98 +545,50 @@ app.get("/attendance", async (req, res) => {
       date: -1,
     });
 
-    // Attach student details using MongoDB ID or custom student ID
-const studentIds = [
-  ...new Set(
-    records.map((record) => String(record.studentId))
-  ),
-];
+    const studentIds = [
+      ...new Set(records.map((record) => String(record.studentId))),
+    ];
 
-const objectIds = studentIds.filter((id) =>
-  mongoose.isValidObjectId(id)
-);
-const customIds = studentIds.filter(
-  (id) => !mongoose.isValidObjectId(id)
-);
+    const objectIds = studentIds.filter((id) =>
+      mongoose.isValidObjectId(id)
+    );
 
-const studentConditions = [];
+    const customIds = studentIds.filter(
+      (id) => !mongoose.isValidObjectId(id)
+    );
 
-if (objectIds.length > 0) {
-  studentConditions.push({
-    _id: { $in: objectIds },
-  });
-}
+    const studentConditions = [];
 
-if (customIds.length > 0) {
-  studentConditions.push({
-    studentId: { $in: customIds },
-  });
-}
+    if (objectIds.length > 0) {
+      studentConditions.push({
+        _id: { $in: objectIds },
+      });
+    }
 
-const students =
-  studentConditions.length > 0
-    ? await Student.find({ $or: studentConditions })
-    : [];
+    if (customIds.length > 0) {
+      studentConditions.push({
+        studentId: { $in: customIds },
+      });
+    }
 
-const studentMap = new Map();
+    const students =
+      studentConditions.length > 0
+        ? await Student.find({ $or: studentConditions })
+        : [];
 
-for (const student of students) {
-  studentMap.set(String(student._id), student);
-  studentMap.set(String(student.studentId), student);
-}
+    const studentMap = new Map();
 
-const results = records.map((record) => ({
-  ...record.toObject(),
-  student: studentMap.get(String(record.studentId)) || null,
-}));
+    for (const student of students) {
+      studentMap.set(String(student._id), student);
+      studentMap.set(String(student.studentId), student);
+    }
 
-return res.json(results);
-} catch (error) {
-  console.error("Fetch attendance error:", error);
+    const results = records.map((record) => ({
+      ...record.toObject(),
+      student: studentMap.get(String(record.studentId)) || null,
+    }));
 
-  return res.status(500).json({
-    message: "Could not fetch attendance records.",
-    error: error.message,
-  });
-}
-});
-
-const customIds = studentIds.filter(
-  (id) => !mongoose.isValidObjectId(id)
-);
-
-const studentConditions = [];
-
-if (objectIds.length > 0) {
-  studentConditions.push({
-    _id: { $in: objectIds },
-  });
-}
-
-if (customIds.length > 0) {
-  studentConditions.push({
-    studentId: { $in: customIds },
-  });
-}
-
-const students =
-  studentConditions.length > 0
-    ? await Student.find({ $or: studentConditions })
-    : [];
-
-const studentMap = new Map();
-
-for (const student of students) {
-  studentMap.set(String(student._id), student);
-  studentMap.set(String(student.studentId), student);
-}
-
-const results = records.map((record) => ({
-  ...record.toObject(),
-  student: studentMap.get(String(record.studentId)) || null,
-}));
-
-return res.json(results);
+    return res.json(results);
   } catch (error) {
     console.error("Fetch attendance error:", error);
 
@@ -645,6 +598,7 @@ return res.json(results);
     });
   }
 });
+
 
 // ==============================
 // START SERVER
