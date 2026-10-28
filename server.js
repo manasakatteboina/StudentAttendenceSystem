@@ -5,9 +5,12 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const Student = require("./models/Student");
 const Attendance = require("./models/Attendance");
+const Faculty = require("./models/Faculty");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -44,7 +47,165 @@ app.get("/test", (req, res) => {
     });
 });
 
-// Add student
+// ========================================
+// FACULTY REGISTRATION
+// ========================================
+app.post("/register", async (req, res) => {
+    try {
+        const { name, username, password } = req.body;
+
+        if (
+            typeof name !== "string" ||
+            typeof username !== "string" ||
+            typeof password !== "string" ||
+            !name.trim() ||
+            !username.trim() ||
+            !password
+        ) {
+            return res.status(400).json({
+                message: "Name, username and password are required."
+            });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({
+                message: "Password must contain at least 8 characters."
+            });
+        }
+
+        const normalizedUsername = username.trim().toLowerCase();
+
+        const existingFaculty = await Faculty.findOne({
+            username: normalizedUsername
+        });
+
+        if (existingFaculty) {
+            return res.status(409).json({
+                message: "This username already exists."
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        const faculty = await Faculty.create({
+            name: name.trim(),
+            username: normalizedUsername,
+            password: hashedPassword
+        });
+
+        return res.status(201).json({
+            message: "Faculty registered successfully!",
+            faculty: {
+                id: faculty._id,
+                name: faculty.name,
+                username: faculty.username
+            }
+        });
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({
+                message: "This username already exists."
+            });
+        }
+
+        console.error("Registration error:", error.message);
+
+        return res.status(500).json({
+            message: "Could not register faculty."
+        });
+    }
+});
+
+
+ // ========================================
+// FACULTY LOGIN
+// ========================================
+app.post("/login", async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (
+            typeof username !== "string" ||
+            typeof password !== "string" ||
+            !username.trim() ||
+            !password
+        ) {
+            return res.status(400).json({
+                message: "Username and password are required."
+            });
+        }
+
+        if (!process.env.JWT_SECRET) {
+            console.error("JWT_SECRET is missing from .env");
+
+            return res.status(500).json({
+                message: "Login configuration is missing."
+            });
+        }
+
+        const normalizedUsername = username.trim().toLowerCase();
+
+        const faculty = await Faculty.findOne({
+            username: normalizedUsername
+        });
+
+        console.log("Login username:", normalizedUsername);
+        console.log("Faculty found:", Boolean(faculty));
+
+        if (!faculty) {
+            return res.status(401).json({
+                message: "Invalid username or password."
+            });
+        }
+
+        console.log(
+            "Password is bcrypt-hashed:",
+            /^\$2[aby]\$/.test(faculty.password)
+        );
+
+        const passwordMatches = await bcrypt.compare(
+            password,
+            faculty.password
+        );
+
+        console.log("Password matched:", passwordMatches);
+
+        if (!passwordMatches) {
+            return res.status(401).json({
+                message: "Invalid username or password."
+            });
+        }
+
+        const token = jwt.sign(
+            {
+                facultyId: faculty._id.toString(),
+                username: faculty.username
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: "1h"
+            }
+        );
+
+        return res.json({
+            message: "Login successful!",
+            token,
+            name: faculty.name,
+            username: faculty.username
+        });
+
+    } catch (error) {
+        console.error("Login error:", error.message);
+
+        return res.status(500).json({
+            message: "Could not complete login."
+        });
+    }
+});
+
+// ========================================
+// ADD STUDENT
+// ========================================
 app.post("/students", async (req, res) => {
     try {
         const student = new Student(req.body);
@@ -64,7 +225,9 @@ app.post("/students", async (req, res) => {
     }
 });
 
-// Get all students
+// ========================================
+// GET ALL STUDENTS
+// ========================================
 app.get("/students", async (req, res) => {
     try {
         const students = await Student.find().sort({ rollNumber: 1 });
@@ -77,7 +240,9 @@ app.get("/students", async (req, res) => {
     }
 });
 
-// Update student
+// ========================================
+// UPDATE STUDENT
+// ========================================
 app.put("/students/:studentId", async (req, res) => {
     try {
         const {
@@ -97,7 +262,8 @@ app.put("/students/:studentId", async (req, res) => {
             !parentPhone
         ) {
             return res.status(400).json({
-                message: "Name, roll number, class, parent name and parent phone are required."
+                message:
+                    "Name, roll number, class, parent name and parent phone are required."
             });
         }
 
@@ -139,7 +305,9 @@ app.put("/students/:studentId", async (req, res) => {
     }
 });
 
-// DELETE student and attendance records
+// ========================================
+// DELETE STUDENT AND ATTENDANCE RECORDS
+// ========================================
 app.delete("/students/:studentId", async (req, res) => {
     try {
         const student = await Student.findOne({
@@ -152,18 +320,19 @@ app.delete("/students/:studentId", async (req, res) => {
             });
         }
 
-        // Remove the student's attendance history first
+        // Delete the student's attendance history first
         await Attendance.deleteMany({
             studentId: student.studentId
         });
 
-        // Remove the student
+        // Delete the student
         await Student.deleteOne({
             studentId: student.studentId
         });
 
         res.json({
-            message: "Student and associated attendance records deleted successfully!",
+            message:
+                "Student and associated attendance records deleted successfully!",
             studentId: student.studentId
         });
     } catch (error) {
@@ -176,14 +345,17 @@ app.delete("/students/:studentId", async (req, res) => {
     }
 });
 
-// Mark attendance and send parent email for absence
+// ========================================
+// MARK ATTENDANCE AND EMAIL PARENTS
+// ========================================
 app.post("/attendance", async (req, res) => {
     try {
         const { studentId, date, status, markedBy } = req.body;
 
         if (!studentId || !date || !status || !markedBy) {
             return res.status(400).json({
-                message: "studentId, date, status and markedBy are required."
+                message:
+                    "studentId, date, status and markedBy are required."
             });
         }
 
@@ -260,7 +432,7 @@ app.post("/attendance", async (req, res) => {
             });
         }
 
-        // Don't resend an email already sent for this absence
+        // Avoid sending a duplicate absence notification
         if (alreadySent) {
             return res.json({
                 message: "Attendance saved. Parent was already notified.",
@@ -274,12 +446,14 @@ app.post("/attendance", async (req, res) => {
 
         const parentEmail = (student.parentEmail || "").trim();
 
+        // Validate parent email
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail)) {
             record.notificationStatus = "Failed";
             await record.save();
 
             return res.status(400).json({
-                message: "Attendance saved, but the parent email is missing or invalid.",
+                message:
+                    "Attendance saved, but the parent email is missing or invalid.",
                 attendance: record,
                 email: { status: "Failed" }
             });
@@ -313,7 +487,8 @@ app.post("/attendance", async (req, res) => {
             await record.save();
 
             return res.json({
-                message: "Attendance saved and parent email sent successfully!",
+                message:
+                    "Attendance saved and parent email sent successfully!",
                 attendance: record,
                 email: {
                     status: "Sent",
@@ -327,7 +502,8 @@ app.post("/attendance", async (req, res) => {
             await record.save();
 
             return res.status(502).json({
-                message: "Attendance saved, but the email could not be sent.",
+                message:
+                    "Attendance saved, but the email could not be sent.",
                 attendance: record,
                 email: {
                     status: "Failed",
@@ -345,7 +521,9 @@ app.post("/attendance", async (req, res) => {
     }
 });
 
-// Get attendance records
+// ========================================
+// GET ATTENDANCE RECORDS
+// ========================================
 app.get("/attendance", async (req, res) => {
     try {
         const records = await Attendance.find().sort({ date: -1 });
@@ -358,7 +536,9 @@ app.get("/attendance", async (req, res) => {
     }
 });
 
-// Start server after connecting to MongoDB
+// ========================================
+// START SERVER AFTER CONNECTING TO MONGODB
+// ========================================
 async function startServer() {
     try {
         if (!MONGO_URI) {
@@ -368,6 +548,7 @@ async function startServer() {
         await mongoose.connect(MONGO_URI);
 
         console.log("MongoDB connected successfully!");
+
         console.log(
             "Gmail configuration:",
             process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD

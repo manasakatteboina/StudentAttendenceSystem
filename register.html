@@ -1,0 +1,365 @@
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faculty Registration | Student Attendance Management System</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #e8f0ff, #f5f7fb);
+        }
+
+        .register-card {
+            width: 100%;
+            max-width: 430px;
+            padding: 35px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.10);
+        }
+
+        .school-icon {
+            text-align: center;
+            font-size: 45px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #183b70;
+            font-size: 25px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-weight: bold;
+            font-size: 14px;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccd3df;
+            border-radius: 7px;
+            font-size: 15px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+        }
+
+        .show-password {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0 18px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .show-password input {
+            width: auto;
+            margin: 0;
+        }
+
+        .register-button {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 7px;
+            background: #2458a6;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .register-button:hover {
+            background: #183f7c;
+        }
+
+        .register-button:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        #message {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 14px;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+
+        .login-link {
+            margin-top: 22px;
+            text-align: center;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .login-link a {
+            color: #2458a6;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="register-card">
+
+        <div class="school-icon">🏫</div>
+
+        <h1>Faculty Registration</h1>
+
+        <p class="subtitle">
+            Create an account to access the attendance system.
+        </p>
+
+        <form id="registerForm">
+
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    placeholder="Enter your full name"
+                    autocomplete="name"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    placeholder="Choose a username"
+                    autocomplete="username"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Create a password (minimum 8 characters)"
+                    autocomplete="new-password"
+                    minlength="8"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    placeholder="Enter your password again"
+                    autocomplete="new-password"
+                    minlength="8"
+                    required
+                >
+            </div>
+
+            <label class="show-password">
+                <input type="checkbox" id="showPassword">
+                Show passwords
+            </label>
+
+            <button
+                type="submit"
+                class="register-button"
+                id="registerButton"
+            >
+                Create Account
+            </button>
+
+            <p id="message" role="status" aria-live="polite"></p>
+
+        </form>
+
+        <p class="login-link">
+            Already have an account?
+            <a href="index.html">Sign in</a>
+        </p>
+
+    </main>
+
+    <script>
+        const registerForm = document.getElementById("registerForm");
+        const nameInput = document.getElementById("name");
+        const usernameInput = document.getElementById("username");
+        const passwordInput = document.getElementById("password");
+        const confirmPasswordInput =
+            document.getElementById("confirmPassword");
+        const showPasswordCheckbox =
+            document.getElementById("showPassword");
+        const registerButton =
+            document.getElementById("registerButton");
+        const message = document.getElementById("message");
+
+        // Show or hide both password fields
+        showPasswordCheckbox.addEventListener("change", function () {
+            const fieldType = this.checked ? "text" : "password";
+
+            passwordInput.type = fieldType;
+            confirmPasswordInput.type = fieldType;
+        });
+
+        // Display a message to the user
+        function showMessage(text, color = "#d93025") {
+            message.textContent = text;
+            message.style.color = color;
+        }
+
+        // Handle faculty registration
+        registerForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            showMessage("");
+
+            const name = nameInput.value.trim();
+            const username = usernameInput.value.trim().toLowerCase();
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            if (!name || !username || !password || !confirmPassword) {
+                showMessage("Please fill in all fields.");
+                return;
+            }
+
+            if (password.length < 8) {
+                showMessage(
+                    "Password must contain at least 8 characters."
+                );
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showMessage("Passwords do not match.");
+                return;
+            }
+
+            registerButton.disabled = true;
+            registerButton.textContent = "Creating Account...";
+
+            try {
+                // Send the registration request to the Express backend
+                const response = await fetch("/register", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        username: username,
+                        password: password
+                    })
+                });
+
+                // Read the response safely before parsing JSON
+                const responseText = await response.text();
+
+                let result;
+
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error(
+                        "Registration response was not valid JSON:",
+                        response.status,
+                        responseText
+                    );
+
+                    if (response.status === 404) {
+                        throw new Error(
+                            "Registration endpoint not found. Open this page through your backend at http://localhost:3000/register.html."
+                        );
+                    }
+
+                    throw new Error(
+                        "The server returned an empty or invalid response. Check the VS Code terminal."
+                    );
+                }
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.message || "Registration failed."
+                    );
+                }
+
+                showMessage(
+                    "Account created successfully! Redirecting to login...",
+                    "green"
+                );
+
+                registerForm.reset();
+                passwordInput.type = "password";
+                confirmPasswordInput.type = "password";
+
+                setTimeout(function () {
+                    window.location.href = "/index.html";
+                }, 1500);
+
+            } catch (error) {
+                console.error("Registration error:", error);
+
+                if (error.message === "Failed to fetch") {
+                    showMessage(
+                        "Cannot connect to the backend. Make sure your server is running."
+                    );
+                } else {
+                    showMessage(error.message);
+                }
+
+            } finally {
+                registerButton.disabled = false;
+                registerButton.textContent = "Create Account";
+            }
+        });
+    </script>
+</body>
+</html>
