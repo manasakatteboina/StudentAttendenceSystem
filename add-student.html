@@ -313,15 +313,15 @@ async function readResponse(response) {
         result = text ? JSON.parse(text) : {};
     } catch {
         throw new Error(
-            "The server returned an invalid response. HTTP status: " +
+            "Invalid server response. HTTP status: " +
             response.status
         );
     }
 
     if (!response.ok) {
         throw new Error(
-            result.message ||
             result.error ||
+            result.message ||
             "Request failed. HTTP status: " + response.status
         );
     }

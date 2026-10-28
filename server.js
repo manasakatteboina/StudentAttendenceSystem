@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const express = require("express");
@@ -22,7 +21,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-// Email configuration
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -40,7 +38,10 @@ app.get("/", (req, res) => {
 app.get("/test", (req, res) => {
   res.json({
     message: "AttendEase server is running!",
-    database: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
+    database:
+      mongoose.connection.readyState === 1
+        ? "Connected"
+        : "Disconnected",
   });
 });
 
@@ -49,19 +50,26 @@ app.post("/register", async (req, res) => {
   try {
     const { name, username, password } = req.body;
 
-    if (!name || !username || !password) {
+    if (
+      typeof name !== "string" ||
+      typeof username !== "string" ||
+      typeof password !== "string" ||
+      !name.trim() ||
+      !username.trim() ||
+      !password
+    ) {
       return res.status(400).json({
         message: "Name, username, and password are required.",
       });
     }
-
-    const cleanUsername = username.trim().toLowerCase();
 
     if (password.length < 6) {
       return res.status(400).json({
         message: "Password must contain at least 6 characters.",
       });
     }
+
+    const cleanUsername = username.trim().toLowerCase();
 
     const existingFaculty = await Faculty.findOne({
       username: cleanUsername,
@@ -109,7 +117,12 @@ app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    if (!username || !password) {
+    if (
+      typeof username !== "string" ||
+      typeof password !== "string" ||
+      !username.trim() ||
+      !password
+    ) {
       return res.status(400).json({
         message: "Username and password are required.",
       });
@@ -118,17 +131,15 @@ app.post("/login", async (req, res) => {
     const jwtSecret = process.env.JWT_SECRET;
 
     if (!jwtSecret) {
-      console.error("JWT_SECRET is missing from environment variables.");
+      console.error("JWT_SECRET is missing.");
 
       return res.status(500).json({
         message: "Login configuration is missing.",
       });
     }
 
-    const cleanUsername = username.trim().toLowerCase();
-
     const faculty = await Faculty.findOne({
-      username: cleanUsername,
+      username: username.trim().toLowerCase(),
     });
 
     if (!faculty) {
@@ -179,6 +190,7 @@ app.post("/login", async (req, res) => {
 app.post("/students", async (req, res) => {
   try {
     const {
+      studentId,
       name,
       rollNumber,
       classId,
@@ -187,21 +199,52 @@ app.post("/students", async (req, res) => {
       parentEmail,
     } = req.body;
 
-    if (!name || !rollNumber || !classId) {
+    // Validate all required fields.
+    if (
+      typeof studentId !== "string" ||
+      typeof name !== "string" ||
+      typeof rollNumber !== "string" ||
+      typeof classId !== "string" ||
+      typeof parentName !== "string" ||
+      typeof parentPhone !== "string" ||
+      !studentId.trim() ||
+      !name.trim() ||
+      !rollNumber.trim() ||
+      !classId.trim() ||
+      !parentName.trim() ||
+      !parentPhone.trim()
+    ) {
       return res.status(400).json({
-        message: "Name, roll number, and class are required.",
+        message:
+          "Student ID, name, roll number, class, parent name, and parent phone are required.",
+      });
+    }
+
+    const cleanStudentId = studentId.trim();
+    const cleanRollNumber = rollNumber.trim();
+
+    // Check duplicate Student ID before inserting.
+    const existingStudent = await Student.findOne({
+      studentId: cleanStudentId,
+    });
+
+    if (existingStudent) {
+      return res.status(409).json({
+        message: "This Student ID is already registered.",
       });
     }
 
     const student = await Student.create({
+      studentId: cleanStudentId,
       name: name.trim(),
-      rollNumber: rollNumber.trim(),
-      classId,
-      parentName,
-      parentPhone,
-      parentEmail: parentEmail
-        ? parentEmail.trim().toLowerCase()
-        : undefined,
+      rollNumber: cleanRollNumber,
+      classId: classId.trim(),
+      parentName: parentName.trim(),
+      parentPhone: parentPhone.trim(),
+      parentEmail:
+        typeof parentEmail === "string"
+          ? parentEmail.trim().toLowerCase()
+          : "",
     });
 
     return res.status(201).json({
@@ -212,8 +255,25 @@ app.post("/students", async (req, res) => {
     console.error("Add student error:", error);
 
     if (error.code === 11000) {
+      const duplicateField = Object.keys(
+        error.keyPattern || {}
+      )[0];
+
+      const duplicateMessages = {
+        studentId: "This Student ID is already registered.",
+        rollNumber: "This roll number is already registered.",
+      };
+
       return res.status(409).json({
-        message: "A student with this roll number already exists.",
+        message:
+          duplicateMessages[duplicateField] ||
+          "A student with this information already exists.",
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: error.message,
       });
     }
 
@@ -227,8 +287,11 @@ app.post("/students", async (req, res) => {
 // Get all students
 app.get("/students", async (req, res) => {
   try {
-    const students = await Student.find().sort({ rollNumber: 1 });
-    return res.json(students);
+    const students = await Student.find().sort({
+      rollNumber: 1,
+    });
+
+    return res.set("Cache-Control", "no-store").json(students);
   } catch (error) {
     console.error("Fetch students error:", error);
 
@@ -238,18 +301,64 @@ app.get("/students", async (req, res) => {
   }
 });
 
-// Update a student
+// Update a student using MongoDB _id
 app.put("/students/:id", async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({
-        message: "Invalid student ID.",
+        message: "Invalid student database ID.",
       });
+    }
+
+    const allowedFields = [
+      "studentId",
+      "name",
+      "rollNumber",
+      "classId",
+      "parentName",
+      "parentPhone",
+      "parentEmail",
+    ];
+
+    const updates = {};
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    }
+
+    if (typeof updates.studentId === "string") {
+      updates.studentId = updates.studentId.trim();
+    }
+
+    if (typeof updates.name === "string") {
+      updates.name = updates.name.trim();
+    }
+
+    if (typeof updates.rollNumber === "string") {
+      updates.rollNumber = updates.rollNumber.trim();
+    }
+
+    if (typeof updates.classId === "string") {
+      updates.classId = updates.classId.trim();
+    }
+
+    if (typeof updates.parentName === "string") {
+      updates.parentName = updates.parentName.trim();
+    }
+
+    if (typeof updates.parentPhone === "string") {
+      updates.parentPhone = updates.parentPhone.trim();
+    }
+
+    if (typeof updates.parentEmail === "string") {
+      updates.parentEmail = updates.parentEmail.trim().toLowerCase();
     }
 
     const student = await Student.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      { $set: updates },
       { new: true, runValidators: true }
     );
 
@@ -266,6 +375,12 @@ app.put("/students/:id", async (req, res) => {
   } catch (error) {
     console.error("Update student error:", error);
 
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "This Student ID is already registered.",
+      });
+    }
+
     return res.status(500).json({
       message: "Could not update student.",
       error: error.message,
@@ -273,12 +388,13 @@ app.put("/students/:id", async (req, res) => {
   }
 });
 
-// Delete a student and their attendance records
+// Delete a student and related attendance records.
+// The URL parameter is the MongoDB _id, not the custom Student ID.
 app.delete("/students/:id", async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({
-        message: "Invalid student ID.",
+        message: "Invalid student database ID.",
       });
     }
 
@@ -290,7 +406,9 @@ app.delete("/students/:id", async (req, res) => {
       });
     }
 
-    await Attendance.deleteMany({ studentId: student._id });
+    await Attendance.deleteMany({
+      studentId: student._id,
+    });
 
     return res.json({
       message: "Student and related attendance records deleted.",
@@ -300,6 +418,7 @@ app.delete("/students/:id", async (req, res) => {
 
     return res.status(500).json({
       message: "Could not delete student.",
+      error: error.message,
     });
   }
 });
@@ -317,7 +436,7 @@ app.post("/attendance", async (req, res) => {
 
     if (!mongoose.isValidObjectId(studentId)) {
       return res.status(400).json({
-        message: "Invalid student ID.",
+        message: "Invalid student database ID.",
       });
     }
 
@@ -367,7 +486,6 @@ app.post("/attendance", async (req, res) => {
       }
     );
 
-    // Send a parent notification when a student is marked absent.
     if (
       status === "Absent" &&
       student.parentEmail &&
@@ -392,6 +510,7 @@ app.post("/attendance", async (req, res) => {
         await attendance.save();
       } catch (emailError) {
         console.error("Parent notification failed:", emailError);
+
         attendance.notificationStatus = "Failed";
         await attendance.save();
       }
@@ -419,7 +538,7 @@ app.get("/attendance", async (req, res) => {
     if (req.query.studentId) {
       if (!mongoose.isValidObjectId(req.query.studentId)) {
         return res.status(400).json({
-          message: "Invalid student ID.",
+          message: "Invalid student database ID.",
         });
       }
 
@@ -462,7 +581,7 @@ app.get("/attendance", async (req, res) => {
   }
 });
 
-// Start server after connecting to MongoDB
+// Connect to MongoDB and start the server
 async function startServer() {
   try {
     if (!MONGO_URI) {
