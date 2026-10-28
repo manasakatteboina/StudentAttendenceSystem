@@ -7,6 +7,7 @@ const cors = require("cors");
 const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const path = require("path");
 
 const Student = require("./models/Student");
 const Attendance = require("./models/Attendance");
@@ -16,553 +17,480 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-// Gmail transporter
+// Email configuration
 const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
-    }
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
 });
 
-// Home route
+// Home page
 app.get("/", (req, res) => {
-    res.send("Student Attendance System Backend is Running!");
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// Test server and database
+// Health check
 app.get("/test", (req, res) => {
-    res.json({
-        message: "Backend is working successfully!",
-        mongodb:
-            mongoose.connection.readyState === 1
-                ? "Connected"
-                : "Disconnected",
-        notifications: "Gmail notifications enabled"
-    });
+  res.json({
+    message: "AttendEase server is running!",
+    database: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
+  });
 });
 
-// ========================================
-// FACULTY REGISTRATION
-// ========================================
+// Faculty registration
 app.post("/register", async (req, res) => {
-    try {
-        const { name, username, password } = req.body;
+  try {
+    const { name, username, password } = req.body;
 
-        if (
-            typeof name !== "string" ||
-            typeof username !== "string" ||
-            typeof password !== "string" ||
-            !name.trim() ||
-            !username.trim() ||
-            !password
-        ) {
-            return res.status(400).json({
-                message: "Name, username and password are required."
-            });
-        }
-
-        if (password.length < 8) {
-            return res.status(400).json({
-                message: "Password must contain at least 8 characters."
-            });
-        }
-
-        const normalizedUsername = username.trim().toLowerCase();
-
-        const existingFaculty = await Faculty.findOne({
-            username: normalizedUsername
-        });
-
-        if (existingFaculty) {
-            return res.status(409).json({
-                message: "This username already exists."
-            });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 12);
-
-        const faculty = await Faculty.create({
-            name: name.trim(),
-            username: normalizedUsername,
-            password: hashedPassword
-        });
-
-        return res.status(201).json({
-            message: "Faculty registered successfully!",
-            faculty: {
-                id: faculty._id,
-                name: faculty.name,
-                username: faculty.username
-            }
-        });
-    } catch (error) {
-        if (error.code === 11000) {
-            return res.status(409).json({
-                message: "This username already exists."
-            });
-        }
-
-        console.error("Registration error:", error.message);
-
-        return res.status(500).json({
-            message: "Could not register faculty."
-        });
+    if (!name || !username || !password) {
+      return res.status(400).json({
+        message: "Name, username, and password are required.",
+      });
     }
+
+    const cleanUsername = username.trim().toLowerCase();
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Password must contain at least 6 characters.",
+      });
+    }
+
+    const existingFaculty = await Faculty.findOne({
+      username: cleanUsername,
+    });
+
+    if (existingFaculty) {
+      return res.status(409).json({
+        message: "This username is already registered.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const faculty = await Faculty.create({
+      name: name.trim(),
+      username: cleanUsername,
+      password: hashedPassword,
+    });
+
+    return res.status(201).json({
+      message: "Faculty registered successfully.",
+      faculty: {
+        id: faculty._id,
+        name: faculty.name,
+        username: faculty.username,
+      },
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "This username is already registered.",
+      });
+    }
+
+    return res.status(500).json({
+      message: "Registration failed.",
+    });
+  }
 });
 
-
- // ========================================
-// FACULTY LOGIN
-// ========================================
+// Faculty login
 app.post("/login", async (req, res) => {
-    try {
-        const { username, password } = req.body;
+  try {
+    const { username, password } = req.body;
 
-        if (
-            typeof username !== "string" ||
-            typeof password !== "string" ||
-            !username.trim() ||
-            !password
-        ) {
-            return res.status(400).json({
-                message: "Username and password are required."
-            });
-        }
-
-        if (!process.env.JWT_SECRET) {
-            console.error("JWT_SECRET is missing from .env");
-
-            return res.status(500).json({
-                message: "Login configuration is missing."
-            });
-        }
-
-        const normalizedUsername = username.trim().toLowerCase();
-
-        const faculty = await Faculty.findOne({
-            username: normalizedUsername
-        });
-
-        console.log("Login username:", normalizedUsername);
-        console.log("Faculty found:", Boolean(faculty));
-
-        if (!faculty) {
-            return res.status(401).json({
-                message: "Invalid username or password."
-            });
-        }
-
-        console.log(
-            "Password is bcrypt-hashed:",
-            /^\$2[aby]\$/.test(faculty.password)
-        );
-
-        const passwordMatches = await bcrypt.compare(
-            password,
-            faculty.password
-        );
-
-        console.log("Password matched:", passwordMatches);
-
-        if (!passwordMatches) {
-            return res.status(401).json({
-                message: "Invalid username or password."
-            });
-        }
-
-        const token = jwt.sign(
-            {
-                facultyId: faculty._id.toString(),
-                username: faculty.username
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: "1h"
-            }
-        );
-
-        return res.json({
-            message: "Login successful!",
-            token,
-            name: faculty.name,
-            username: faculty.username
-        });
-
-    } catch (error) {
-        console.error("Login error:", error.message);
-
-        return res.status(500).json({
-            message: "Could not complete login."
-        });
+    if (!username || !password) {
+      return res.status(400).json({
+        message: "Username and password are required.",
+      });
     }
+
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      console.error("JWT_SECRET is missing from environment variables.");
+
+      return res.status(500).json({
+        message: "Login configuration is missing.",
+      });
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+
+    const faculty = await Faculty.findOne({
+      username: cleanUsername,
+    });
+
+    if (!faculty) {
+      return res.status(401).json({
+        message: "Invalid username or password.",
+      });
+    }
+
+    const passwordMatched = await bcrypt.compare(
+      password,
+      faculty.password
+    );
+
+    if (!passwordMatched) {
+      return res.status(401).json({
+        message: "Invalid username or password.",
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        facultyId: faculty._id.toString(),
+        username: faculty.username,
+      },
+      jwtSecret,
+      { expiresIn: "1h" }
+    );
+
+    return res.json({
+      message: "Login successful.",
+      token,
+      faculty: {
+        id: faculty._id,
+        name: faculty.name,
+        username: faculty.username,
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+
+    return res.status(500).json({
+      message: "Login failed.",
+    });
+  }
 });
 
-// ========================================
-// ADD STUDENT
-// ========================================
+// Add a student
 app.post("/students", async (req, res) => {
-    try {
-        const student = new Student(req.body);
-        const savedStudent = await student.save();
+  try {
+    const {
+      name,
+      rollNumber,
+      classId,
+      parentName,
+      parentPhone,
+      parentEmail,
+    } = req.body;
 
-        res.status(201).json({
-            message: "Student added successfully!",
-            student: savedStudent
-        });
-    } catch (error) {
-        console.error("Add student error:", error.message);
-
-        res.status(error.code === 11000 ? 409 : 400).json({
-            message: "Could not add student.",
-            error: error.message
-        });
+    if (!name || !rollNumber || !classId) {
+      return res.status(400).json({
+        message: "Name, roll number, and class are required.",
+      });
     }
+
+    const student = await Student.create({
+      name: name.trim(),
+      rollNumber: rollNumber.trim(),
+      classId,
+      parentName,
+      parentPhone,
+      parentEmail: parentEmail
+        ? parentEmail.trim().toLowerCase()
+        : undefined,
+    });
+
+    return res.status(201).json({
+      message: "Student added successfully.",
+      student,
+    });
+  } catch (error) {
+    console.error("Add student error:", error);
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "A student with this roll number already exists.",
+      });
+    }
+
+    return res.status(500).json({
+      message: "Could not add student.",
+      error: error.message,
+    });
+  }
 });
 
-// ========================================
-// GET ALL STUDENTS
-// ========================================
+// Get all students
 app.get("/students", async (req, res) => {
-    try {
-        const students = await Student.find().sort({ rollNumber: 1 });
-        res.json(students);
-    } catch (error) {
-        res.status(500).json({
-            message: "Could not fetch students.",
-            error: error.message
-        });
-    }
+  try {
+    const students = await Student.find().sort({ rollNumber: 1 });
+    return res.json(students);
+  } catch (error) {
+    console.error("Fetch students error:", error);
+
+    return res.status(500).json({
+      message: "Could not fetch students.",
+    });
+  }
 });
 
-// ========================================
-// UPDATE STUDENT
-// ========================================
-app.put("/students/:studentId", async (req, res) => {
-    try {
-        const {
-            name,
-            rollNumber,
-            classId,
-            parentName,
-            parentPhone,
-            parentEmail
-        } = req.body;
-
-        if (
-            !name ||
-            !rollNumber ||
-            !classId ||
-            !parentName ||
-            !parentPhone
-        ) {
-            return res.status(400).json({
-                message:
-                    "Name, roll number, class, parent name and parent phone are required."
-            });
-        }
-
-        const updatedStudent = await Student.findOneAndUpdate(
-            { studentId: req.params.studentId },
-            {
-                $set: {
-                    name,
-                    rollNumber,
-                    classId,
-                    parentName,
-                    parentPhone,
-                    parentEmail: parentEmail || ""
-                }
-            },
-            {
-                returnDocument: "after",
-                runValidators: true
-            }
-        );
-
-        if (!updatedStudent) {
-            return res.status(404).json({
-                message: "Student not found."
-            });
-        }
-
-        res.json({
-            message: "Student updated successfully!",
-            student: updatedStudent
-        });
-    } catch (error) {
-        console.error("Update student error:", error.message);
-
-        res.status(400).json({
-            message: "Could not update student.",
-            error: error.message
-        });
+// Update a student
+app.put("/students/:id", async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        message: "Invalid student ID.",
+      });
     }
+
+    const student = await Student.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+
+    if (!student) {
+      return res.status(404).json({
+        message: "Student not found.",
+      });
+    }
+
+    return res.json({
+      message: "Student updated successfully.",
+      student,
+    });
+  } catch (error) {
+    console.error("Update student error:", error);
+
+    return res.status(500).json({
+      message: "Could not update student.",
+      error: error.message,
+    });
+  }
 });
 
-// ========================================
-// DELETE STUDENT AND ATTENDANCE RECORDS
-// ========================================
-app.delete("/students/:studentId", async (req, res) => {
-    try {
-        const student = await Student.findOne({
-            studentId: req.params.studentId
-        });
-
-        if (!student) {
-            return res.status(404).json({
-                message: "Student not found."
-            });
-        }
-
-        // Delete the student's attendance history first
-        await Attendance.deleteMany({
-            studentId: student.studentId
-        });
-
-        // Delete the student
-        await Student.deleteOne({
-            studentId: student.studentId
-        });
-
-        res.json({
-            message:
-                "Student and associated attendance records deleted successfully!",
-            studentId: student.studentId
-        });
-    } catch (error) {
-        console.error("Delete student error:", error.message);
-
-        res.status(500).json({
-            message: "Could not delete student.",
-            error: error.message
-        });
+// Delete a student and their attendance records
+app.delete("/students/:id", async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        message: "Invalid student ID.",
+      });
     }
+
+    const student = await Student.findByIdAndDelete(req.params.id);
+
+    if (!student) {
+      return res.status(404).json({
+        message: "Student not found.",
+      });
+    }
+
+    await Attendance.deleteMany({ studentId: student._id });
+
+    return res.json({
+      message: "Student and related attendance records deleted.",
+    });
+  } catch (error) {
+    console.error("Delete student error:", error);
+
+    return res.status(500).json({
+      message: "Could not delete student.",
+    });
+  }
 });
 
-// ========================================
-// MARK ATTENDANCE AND EMAIL PARENTS
-// ========================================
+// Mark or update attendance
 app.post("/attendance", async (req, res) => {
-    try {
-        const { studentId, date, status, markedBy } = req.body;
+  try {
+    const { studentId, date, status, markedBy } = req.body;
 
-        if (!studentId || !date || !status || !markedBy) {
-            return res.status(400).json({
-                message:
-                    "studentId, date, status and markedBy are required."
-            });
-        }
-
-        if (!["Present", "Absent"].includes(status)) {
-            return res.status(400).json({
-                message: "Status must be Present or Absent."
-            });
-        }
-
-        if (
-            typeof date !== "string" ||
-            !/^\d{4}-\d{2}-\d{2}$/.test(date)
-        ) {
-            return res.status(400).json({
-                message: "Date must use YYYY-MM-DD format."
-            });
-        }
-
-        const parsedDate = new Date(`${date}T00:00:00.000Z`);
-
-        if (
-            Number.isNaN(parsedDate.getTime()) ||
-            parsedDate.toISOString().slice(0, 10) !== date
-        ) {
-            return res.status(400).json({
-                message: "Please provide a valid date."
-            });
-        }
-
-        const student = await Student.findOne({ studentId });
-
-        if (!student) {
-            return res.status(404).json({
-                message: "Student not found."
-            });
-        }
-
-        const previous = await Attendance.findOne({
-            studentId,
-            date
-        });
-
-        const alreadySent =
-            previous &&
-            previous.status === "Absent" &&
-            previous.notificationStatus === "Sent";
-
-        // Save or update attendance
-        const record = await Attendance.findOneAndUpdate(
-            { studentId, date },
-            {
-                $set: {
-                    studentId,
-                    date,
-                    status,
-                    markedBy,
-                    notificationStatus:
-                        status === "Absent" ? "Pending" : "Not required"
-                }
-            },
-            {
-                returnDocument: "after",
-                upsert: true,
-                runValidators: true,
-                setDefaultsOnInsert: true
-            }
-        );
-
-        if (status === "Present") {
-            return res.json({
-                message: "Attendance marked Present successfully.",
-                attendance: record,
-                email: { status: "Not required" }
-            });
-        }
-
-        // Avoid sending a duplicate absence notification
-        if (alreadySent) {
-            return res.json({
-                message: "Attendance saved. Parent was already notified.",
-                attendance: record,
-                email: {
-                    status: "Sent",
-                    message: "Duplicate email skipped."
-                }
-            });
-        }
-
-        const parentEmail = (student.parentEmail || "").trim();
-
-        // Validate parent email
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail)) {
-            record.notificationStatus = "Failed";
-            await record.save();
-
-            return res.status(400).json({
-                message:
-                    "Attendance saved, but the parent email is missing or invalid.",
-                attendance: record,
-                email: { status: "Failed" }
-            });
-        }
-
-        if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-            record.notificationStatus = "Failed";
-            await record.save();
-
-            return res.status(500).json({
-                message: "Gmail configuration is missing from .env.",
-                attendance: record,
-                email: { status: "Failed" }
-            });
-        }
-
-        try {
-            await transporter.sendMail({
-                from: `"Student Attendance System" <${process.env.GMAIL_USER}>`,
-                to: parentEmail,
-                subject: "Student Attendance Alert",
-                text:
-                    `Dear ${student.parentName},\n\n` +
-                    `Your child ${student.name} (Roll No. ${student.rollNumber}) ` +
-                    `was marked ABSENT on ${date}.\n\n` +
-                    "Please contact the college if you need further information.\n\n" +
-                    "Regards,\nStudent Attendance System"
-            });
-
-            record.notificationStatus = "Sent";
-            await record.save();
-
-            return res.json({
-                message:
-                    "Attendance saved and parent email sent successfully!",
-                attendance: record,
-                email: {
-                    status: "Sent",
-                    to: parentEmail
-                }
-            });
-        } catch (emailError) {
-            console.error("Email sending failed:", emailError.message);
-
-            record.notificationStatus = "Failed";
-            await record.save();
-
-            return res.status(502).json({
-                message:
-                    "Attendance saved, but the email could not be sent.",
-                attendance: record,
-                email: {
-                    status: "Failed",
-                    message: emailError.message
-                }
-            });
-        }
-    } catch (error) {
-        console.error("Attendance error:", error.message);
-
-        res.status(500).json({
-            message: "Could not complete attendance request.",
-            error: error.message
-        });
+    if (!studentId || !date || !status || !markedBy) {
+      return res.status(400).json({
+        message: "Student ID, date, status, and markedBy are required.",
+      });
     }
+
+    if (!mongoose.isValidObjectId(studentId)) {
+      return res.status(400).json({
+        message: "Invalid student ID.",
+      });
+    }
+
+    if (!["Present", "Absent"].includes(status)) {
+      return res.status(400).json({
+        message: "Status must be Present or Absent.",
+      });
+    }
+
+    const attendanceDate = new Date(date);
+
+    if (Number.isNaN(attendanceDate.getTime())) {
+      return res.status(400).json({
+        message: "Please provide a valid attendance date.",
+      });
+    }
+
+    const student = await Student.findById(studentId);
+
+    if (!student) {
+      return res.status(404).json({
+        message: "Student not found.",
+      });
+    }
+
+    const attendance = await Attendance.findOneAndUpdate(
+      {
+        studentId: student._id,
+        date: attendanceDate,
+      },
+      {
+        $set: {
+          status,
+          markedBy,
+        },
+        $setOnInsert: {
+          studentId: student._id,
+          date: attendanceDate,
+          notificationStatus: "Not Sent",
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    // Send a parent notification when a student is marked absent.
+    if (
+      status === "Absent" &&
+      student.parentEmail &&
+      process.env.GMAIL_USER &&
+      process.env.GMAIL_APP_PASSWORD
+    ) {
+      try {
+        await transporter.sendMail({
+          from: process.env.GMAIL_USER,
+          to: student.parentEmail,
+          subject: "Student Attendance Notification",
+          text:
+            `Dear ${student.parentName || "Parent/Guardian"},\n\n` +
+            `This is to inform you that ${student.name} ` +
+            `(Roll Number: ${student.rollNumber}) was marked absent ` +
+            `on ${attendanceDate.toLocaleDateString("en-IN")}.\n\n` +
+            "Please contact the faculty if you have any questions.\n\n" +
+            "Regards,\nAttendEase",
+        });
+
+        attendance.notificationStatus = "Sent";
+        await attendance.save();
+      } catch (emailError) {
+        console.error("Parent notification failed:", emailError);
+        attendance.notificationStatus = "Failed";
+        await attendance.save();
+      }
+    }
+
+    return res.json({
+      message: "Attendance saved successfully.",
+      attendance,
+    });
+  } catch (error) {
+    console.error("Mark attendance error:", error);
+
+    return res.status(500).json({
+      message: "Could not save attendance.",
+      error: error.message,
+    });
+  }
 });
 
-// ========================================
-// GET ATTENDANCE RECORDS
-// ========================================
+// Get attendance records
 app.get("/attendance", async (req, res) => {
-    try {
-        const records = await Attendance.find().sort({ date: -1 });
-        res.json(records);
-    } catch (error) {
-        res.status(500).json({
-            message: "Could not fetch attendance.",
-            error: error.message
+  try {
+    const filter = {};
+
+    if (req.query.studentId) {
+      if (!mongoose.isValidObjectId(req.query.studentId)) {
+        return res.status(400).json({
+          message: "Invalid student ID.",
         });
+      }
+
+      filter.studentId = req.query.studentId;
     }
+
+    if (req.query.date) {
+      const attendanceDate = new Date(req.query.date);
+
+      if (Number.isNaN(attendanceDate.getTime())) {
+        return res.status(400).json({
+          message: "Invalid date.",
+        });
+      }
+
+      filter.date = attendanceDate;
+    }
+
+    if (req.query.status) {
+      if (!["Present", "Absent"].includes(req.query.status)) {
+        return res.status(400).json({
+          message: "Status must be Present or Absent.",
+        });
+      }
+
+      filter.status = req.query.status;
+    }
+
+    const records = await Attendance.find(filter)
+      .populate("studentId")
+      .sort({ date: -1 });
+
+    return res.json(records);
+  } catch (error) {
+    console.error("Fetch attendance error:", error);
+
+    return res.status(500).json({
+      message: "Could not fetch attendance records.",
+    });
+  }
 });
 
-// ========================================
-// START SERVER AFTER CONNECTING TO MONGODB
-// ========================================
+// Start server after connecting to MongoDB
 async function startServer() {
-    try {
-        if (!MONGO_URI) {
-            throw new Error("MONGO_URI is missing from .env");
-        }
-
-        await mongoose.connect(MONGO_URI);
-
-        console.log("MongoDB connected successfully!");
-
-        console.log(
-            "Gmail configuration:",
-            process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD
-                ? "Found"
-                : "Missing"
-        );
-
-        app.listen(PORT, () => {
-            console.log(`Server running at http://localhost:${PORT}`);
-        });
-    } catch (error) {
-        console.error("Server startup failed:", error.message);
-        process.exit(1);
+  try {
+    if (!MONGO_URI) {
+      throw new Error("MONGO_URI is missing from environment variables.");
     }
+
+    await mongoose.connect(MONGO_URI);
+    console.log("MongoDB connected successfully!");
+
+    console.log(
+      "Gmail configuration:",
+      process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD
+        ? "Found"
+        : "Missing"
+    );
+
+    console.log(
+      "JWT configuration:",
+      process.env.JWT_SECRET ? "Found" : "Missing"
+    );
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Server startup failed:", error.message);
+    process.exit(1);
+  }
 }
 
 startServer();
