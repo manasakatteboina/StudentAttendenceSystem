@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -89,11 +88,6 @@
             color: #1d4ed8;
         }
 
-        .delete-btn {
-            background: #dc2626;
-            color: white;
-        }
-
         button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -160,7 +154,7 @@
     <h1>Add New Student</h1>
 
     <p class="subtitle">
-        Register students and manage existing student records.
+        Register new students and view existing student records.
     </p>
 
     <form id="studentForm">
@@ -238,16 +232,17 @@
                 Back to Dashboard
             </a>
         </div>
+
     </form>
 
     <p id="message" role="status" aria-live="polite"></p>
 
     <div class="section">
 
-        <h2>Manage Students</h2>
+        <h2>Registered Students</h2>
 
         <p class="subtitle">
-            View registered students and delete a student when necessary.
+            View all students registered in AttendEase.
         </p>
 
         <button
@@ -268,17 +263,17 @@
                         <th>Roll No.</th>
                         <th>Name</th>
                         <th>Class</th>
-                        <th>Action</th>
                     </tr>
                 </thead>
 
                 <tbody id="studentList">
                     <tr>
-                        <td colspan="5">Loading students...</td>
+                        <td colspan="4">Loading students...</td>
                     </tr>
                 </tbody>
             </table>
         </div>
+
     </div>
 
 </div>
@@ -286,7 +281,7 @@
 <script>
 "use strict";
 
-// Your deployed Render backend
+// Deployed AttendEase backend
 const API_URL =
     "https://studentattendencesystem-h4mq.onrender.com";
 
@@ -297,20 +292,20 @@ const studentList = document.getElementById("studentList");
 const listMessage = document.getElementById("listMessage");
 const refreshButton = document.getElementById("refreshButton");
 
-// Display success or error messages
+// Display success and error messages
 function showMessage(element, text, type) {
     element.textContent = text;
     element.className = type ? "message " + type : "";
 }
 
-// Read JSON safely and display backend errors
+// Read and validate the server response
 async function readResponse(response) {
-    const text = await response.text();
+    const responseText = await response.text();
 
     let result;
 
     try {
-        result = text ? JSON.parse(text) : {};
+        result = responseText ? JSON.parse(responseText) : {};
     } catch {
         throw new Error(
             "Invalid server response. HTTP status: " +
@@ -320,8 +315,8 @@ async function readResponse(response) {
 
     if (!response.ok) {
         throw new Error(
-            result.error ||
             result.message ||
+            result.error ||
             "Request failed. HTTP status: " + response.status
         );
     }
@@ -329,7 +324,7 @@ async function readResponse(response) {
     return result;
 }
 
-// Add a student
+// Add a new student
 form.addEventListener("submit", async function(event) {
     event.preventDefault();
 
@@ -401,11 +396,20 @@ form.addEventListener("submit", async function(event) {
     }
 });
 
-// Load all students
+// Load and display all registered students
 async function loadStudents() {
     refreshButton.disabled = true;
-    studentList.innerHTML =
-        '<tr><td colspan="5">Loading students...</td></tr>';
+
+    studentList.replaceChildren();
+
+    const loadingRow = document.createElement("tr");
+    const loadingCell = document.createElement("td");
+
+    loadingCell.colSpan = 4;
+    loadingCell.textContent = "Loading students...";
+
+    loadingRow.appendChild(loadingCell);
+    studentList.appendChild(loadingRow);
 
     try {
         const response = await fetch(API_URL + "/students", {
@@ -417,15 +421,21 @@ async function loadStudents() {
 
         if (!Array.isArray(students)) {
             throw new Error(
-                "The backend did not return a student list."
+                "The server did not return a valid student list."
             );
         }
 
         studentList.replaceChildren();
 
         if (students.length === 0) {
-            studentList.innerHTML =
-                '<tr><td colspan="5">No students registered yet.</td></tr>';
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+
+            cell.colSpan = 4;
+            cell.textContent = "No students registered yet.";
+
+            row.appendChild(cell);
+            studentList.appendChild(row);
 
             showMessage(listMessage, "", "");
             return;
@@ -434,30 +444,19 @@ async function loadStudents() {
         students.forEach(function(student) {
             const row = document.createElement("tr");
 
-            [
+            const studentDetails = [
                 student.studentId,
                 student.rollNumber,
                 student.name,
                 student.classId
-            ].forEach(function(value) {
+            ];
+
+            studentDetails.forEach(function(value) {
                 const cell = document.createElement("td");
                 cell.textContent = value ?? "";
                 row.appendChild(cell);
             });
 
-            const actionCell = document.createElement("td");
-            const deleteButton = document.createElement("button");
-
-            deleteButton.type = "button";
-            deleteButton.className = "delete-btn";
-            deleteButton.textContent = "Delete";
-
-            deleteButton.addEventListener("click", function() {
-                deleteStudent(student._id, deleteButton);
-            });
-
-            actionCell.appendChild(deleteButton);
-            row.appendChild(actionCell);
             studentList.appendChild(row);
         });
 
@@ -466,8 +465,16 @@ async function loadStudents() {
     } catch (error) {
         console.error("Load students error:", error);
 
-        studentList.innerHTML =
-            '<tr><td colspan="5">Could not load students.</td></tr>';
+        studentList.replaceChildren();
+
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+
+        cell.colSpan = 4;
+        cell.textContent = "Could not load students.";
+
+        row.appendChild(cell);
+        studentList.appendChild(row);
 
         showMessage(
             listMessage,
@@ -480,62 +487,10 @@ async function loadStudents() {
     }
 }
 
-// Delete a student by MongoDB _id
-async function deleteStudent(studentMongoId, button) {
-    if (!studentMongoId) {
-        showMessage(
-            listMessage,
-            "Student database ID is missing.",
-            "error"
-        );
-        return;
-    }
-
-    if (!confirm("Are you sure you want to delete this student?")) {
-        return;
-    }
-
-    button.disabled = true;
-    button.textContent = "Deleting...";
-
-    try {
-        const response = await fetch(
-            API_URL + "/students/" +
-            encodeURIComponent(studentMongoId),
-            {
-                method: "DELETE",
-                cache: "no-store"
-            }
-        );
-
-        const result = await readResponse(response);
-
-        showMessage(
-            listMessage,
-            result.message || "Student deleted successfully.",
-            "success"
-        );
-
-        await loadStudents();
-
-    } catch (error) {
-        console.error("Delete student error:", error);
-
-        showMessage(
-            listMessage,
-            "Could not delete student: " + error.message,
-            "error"
-        );
-
-        button.disabled = false;
-        button.textContent = "Delete";
-    }
-}
-
-// Refresh student list
+// Refresh the student list
 refreshButton.addEventListener("click", loadStudents);
 
-// Load student list when page opens
+// Load students when the page opens
 loadStudents();
 </script>
 

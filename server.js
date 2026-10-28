@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 
 const express = require("express");
@@ -34,7 +35,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// Health check
+// Server and database health check
 app.get("/test", (req, res) => {
   res.json({
     message: "AttendEase server is running!",
@@ -45,7 +46,9 @@ app.get("/test", (req, res) => {
   });
 });
 
-// Faculty registration
+// ==============================
+// FACULTY REGISTRATION
+// ==============================
 app.post("/register", async (req, res) => {
   try {
     const { name, username, password } = req.body;
@@ -112,7 +115,9 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Faculty login
+// ==============================
+// FACULTY LOGIN
+// ==============================
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -128,11 +133,7 @@ app.post("/login", async (req, res) => {
       });
     }
 
-    const jwtSecret = process.env.JWT_SECRET;
-
-    if (!jwtSecret) {
-      console.error("JWT_SECRET is missing.");
-
+    if (!process.env.JWT_SECRET) {
       return res.status(500).json({
         message: "Login configuration is missing.",
       });
@@ -164,7 +165,7 @@ app.post("/login", async (req, res) => {
         facultyId: faculty._id.toString(),
         username: faculty.username,
       },
-      jwtSecret,
+      process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
@@ -186,7 +187,10 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Add a student
+// ==============================
+// ADD A STUDENT
+// No delete-student route is included.
+// ==============================
 app.post("/students", async (req, res) => {
   try {
     const {
@@ -199,7 +203,6 @@ app.post("/students", async (req, res) => {
       parentEmail,
     } = req.body;
 
-    // Validate all required fields.
     if (
       typeof studentId !== "string" ||
       typeof name !== "string" ||
@@ -223,7 +226,6 @@ app.post("/students", async (req, res) => {
     const cleanStudentId = studentId.trim();
     const cleanRollNumber = rollNumber.trim();
 
-    // Check duplicate Student ID before inserting.
     const existingStudent = await Student.findOne({
       studentId: cleanStudentId,
     });
@@ -255,19 +257,8 @@ app.post("/students", async (req, res) => {
     console.error("Add student error:", error);
 
     if (error.code === 11000) {
-      const duplicateField = Object.keys(
-        error.keyPattern || {}
-      )[0];
-
-      const duplicateMessages = {
-        studentId: "This Student ID is already registered.",
-        rollNumber: "This roll number is already registered.",
-      };
-
       return res.status(409).json({
-        message:
-          duplicateMessages[duplicateField] ||
-          "A student with this information already exists.",
+        message: "Student ID or roll number already exists.",
       });
     }
 
@@ -284,14 +275,18 @@ app.post("/students", async (req, res) => {
   }
 });
 
-// Get all students
+// ==============================
+// GET ALL STUDENTS
+// ==============================
 app.get("/students", async (req, res) => {
   try {
     const students = await Student.find().sort({
       rollNumber: 1,
     });
 
-    return res.set("Cache-Control", "no-store").json(students);
+    return res
+      .set("Cache-Control", "no-store")
+      .json(students);
   } catch (error) {
     console.error("Fetch students error:", error);
 
@@ -301,7 +296,9 @@ app.get("/students", async (req, res) => {
   }
 });
 
-// Update a student using MongoDB _id
+// ==============================
+// UPDATE A STUDENT
+// ==============================
 app.put("/students/:id", async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
@@ -328,32 +325,22 @@ app.put("/students/:id", async (req, res) => {
       }
     }
 
-    if (typeof updates.studentId === "string") {
-      updates.studentId = updates.studentId.trim();
-    }
-
-    if (typeof updates.name === "string") {
-      updates.name = updates.name.trim();
-    }
-
-    if (typeof updates.rollNumber === "string") {
-      updates.rollNumber = updates.rollNumber.trim();
-    }
-
-    if (typeof updates.classId === "string") {
-      updates.classId = updates.classId.trim();
-    }
-
-    if (typeof updates.parentName === "string") {
-      updates.parentName = updates.parentName.trim();
-    }
-
-    if (typeof updates.parentPhone === "string") {
-      updates.parentPhone = updates.parentPhone.trim();
+    for (const field of [
+      "studentId",
+      "name",
+      "rollNumber",
+      "classId",
+      "parentName",
+      "parentPhone",
+    ]) {
+      if (typeof updates[field] === "string") {
+        updates[field] = updates[field].trim();
+      }
     }
 
     if (typeof updates.parentEmail === "string") {
-      updates.parentEmail = updates.parentEmail.trim().toLowerCase();
+      updates.parentEmail =
+        updates.parentEmail.trim().toLowerCase();
     }
 
     const student = await Student.findByIdAndUpdate(
@@ -377,7 +364,7 @@ app.put("/students/:id", async (req, res) => {
 
     if (error.code === 11000) {
       return res.status(409).json({
-        message: "This Student ID is already registered.",
+        message: "Student ID or roll number already exists.",
       });
     }
 
@@ -388,49 +375,25 @@ app.put("/students/:id", async (req, res) => {
   }
 });
 
-// Delete a student and related attendance records.
-// The URL parameter is the MongoDB _id, not the custom Student ID.
-app.delete("/students/:id", async (req, res) => {
-  try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({
-        message: "Invalid student database ID.",
-      });
-    }
+// IMPORTANT:
+// There is intentionally NO DELETE /students/:id route.
 
-    const student = await Student.findByIdAndDelete(req.params.id);
-
-    if (!student) {
-      return res.status(404).json({
-        message: "Student not found.",
-      });
-    }
-
-    await Attendance.deleteMany({
-      studentId: student._id,
-    });
-
-    return res.json({
-      message: "Student and related attendance records deleted.",
-    });
-  } catch (error) {
-    console.error("Delete student error:", error);
-
-    return res.status(500).json({
-      message: "Could not delete student.",
-      error: error.message,
-    });
-  }
-});
-
-// Mark or update attendance
+// ==============================
+// MARK OR UPDATE ATTENDANCE
+// ==============================
 app.post("/attendance", async (req, res) => {
   try {
     const { studentId, date, status, markedBy } = req.body;
 
-    if (!studentId || !date || !status || !markedBy) {
+    if (
+      !studentId ||
+      !date ||
+      !status ||
+      !markedBy
+    ) {
       return res.status(400).json({
-        message: "Student ID, date, status, and markedBy are required.",
+        message:
+          "Student ID, date, status, and markedBy are required.",
       });
     }
 
@@ -446,11 +409,14 @@ app.post("/attendance", async (req, res) => {
       });
     }
 
-    const attendanceDate = new Date(date);
-
-    if (Number.isNaN(attendanceDate.getTime())) {
+    if (
+      typeof date !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      Number.isNaN(Date.parse(`${date}T00:00:00Z`)) ||
+      new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date
+    ) {
       return res.status(400).json({
-        message: "Please provide a valid attendance date.",
+        message: "Date must be in YYYY-MM-DD format.",
       });
     }
 
@@ -462,20 +428,19 @@ app.post("/attendance", async (req, res) => {
       });
     }
 
+    // Attendance model stores studentId and date as strings.
     const attendance = await Attendance.findOneAndUpdate(
       {
-        studentId: student._id,
-        date: attendanceDate,
+        studentId: student._id.toString(),
+        date,
       },
       {
         $set: {
           status,
-          markedBy,
+          markedBy: String(markedBy).trim(),
         },
         $setOnInsert: {
-          studentId: student._id,
-          date: attendanceDate,
-          notificationStatus: "Not Sent",
+          studentId: student._id.toString(),
         },
       },
       {
@@ -499,17 +464,18 @@ app.post("/attendance", async (req, res) => {
           subject: "Student Attendance Notification",
           text:
             `Dear ${student.parentName || "Parent/Guardian"},\n\n` +
-            `This is to inform you that ${student.name} ` +
-            `(Roll Number: ${student.rollNumber}) was marked absent ` +
-            `on ${attendanceDate.toLocaleDateString("en-IN")}.\n\n` +
-            "Please contact the faculty if you have any questions.\n\n" +
+            `${student.name} (Roll Number: ${student.rollNumber}) ` +
+            `was marked absent on ${date}.\n\n` +
             "Regards,\nAttendEase",
         });
 
         attendance.notificationStatus = "Sent";
         await attendance.save();
       } catch (emailError) {
-        console.error("Parent notification failed:", emailError);
+        console.error(
+          "Parent notification failed:",
+          emailError
+        );
 
         attendance.notificationStatus = "Failed";
         await attendance.save();
@@ -530,7 +496,9 @@ app.post("/attendance", async (req, res) => {
   }
 });
 
-// Get attendance records
+// ==============================
+// GET ATTENDANCE RECORDS
+// ==============================
 app.get("/attendance", async (req, res) => {
   try {
     const filter = {};
@@ -546,15 +514,20 @@ app.get("/attendance", async (req, res) => {
     }
 
     if (req.query.date) {
-      const attendanceDate = new Date(req.query.date);
+      const date = req.query.date;
 
-      if (Number.isNaN(attendanceDate.getTime())) {
+      if (
+        typeof date !== "string" ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+        Number.isNaN(Date.parse(`${date}T00:00:00Z`)) ||
+        new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date
+      ) {
         return res.status(400).json({
-          message: "Invalid date.",
+          message: "Date must be in YYYY-MM-DD format.",
         });
       }
 
-      filter.date = attendanceDate;
+      filter.date = date;
     }
 
     if (req.query.status) {
@@ -567,25 +540,53 @@ app.get("/attendance", async (req, res) => {
       filter.status = req.query.status;
     }
 
-    const records = await Attendance.find(filter)
-      .populate("studentId")
-      .sort({ date: -1 });
+    const records = await Attendance.find(filter).sort({
+      date: -1,
+    });
 
-    return res.json(records);
+    // Attach student details without populate because Attendance.studentId
+    // is a String field, not a Mongoose ObjectId reference.
+    const studentIds = [
+      ...new Set(records.map((record) => record.studentId)),
+    ];
+
+    const students = await Student.find({
+      _id: { $in: studentIds },
+    });
+
+    const studentMap = new Map(
+      students.map((student) => [
+        student._id.toString(),
+        student,
+      ])
+    );
+
+    const results = records.map((record) => ({
+      ...record.toObject(),
+      student:
+        studentMap.get(record.studentId) || null,
+    }));
+
+    return res.json(results);
   } catch (error) {
     console.error("Fetch attendance error:", error);
 
     return res.status(500).json({
       message: "Could not fetch attendance records.",
+      error: error.message,
     });
   }
 });
 
-// Connect to MongoDB and start the server
+// ==============================
+// START SERVER
+// ==============================
 async function startServer() {
   try {
     if (!MONGO_URI) {
-      throw new Error("MONGO_URI is missing from environment variables.");
+      throw new Error(
+        "MONGO_URI is missing from environment variables."
+      );
     }
 
     await mongoose.connect(MONGO_URI);
@@ -593,7 +594,8 @@ async function startServer() {
 
     console.log(
       "Gmail configuration:",
-      process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD
+      process.env.GMAIL_USER &&
+        process.env.GMAIL_APP_PASSWORD
         ? "Found"
         : "Missing"
     );
@@ -607,7 +609,11 @@ async function startServer() {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error("Server startup failed:", error.message);
+    console.error(
+      "Server startup failed:",
+      error.message
+    );
+
     process.exit(1);
   }
 }
