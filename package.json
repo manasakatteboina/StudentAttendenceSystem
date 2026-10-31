@@ -12,13 +12,14 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
-    "dotenv": "^18.0.7",
-    "express": "^5.3.0",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.11.1",
-    "nodemailer": "^10.1.0",
-    "twilio": "^6.1.2"
+   "@emailjs/nodejs": "^5.0.2",
+  "bcryptjs": "^3.0.3",
+  "cors": "^2.8.6",
+  "dotenv": "^18.0.7",
+  "express": "^5.3.0",
+  "jsonwebtoken": "^9.0.3",
+  "mongoose": "^9.11.1",
+  "nodemailer": "^10.1.0",
+  "twilio": "^6.1.2"
   }
 }
