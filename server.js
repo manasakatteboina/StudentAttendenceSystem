@@ -4,7 +4,7 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const nodemailer = require("nodemailer");
+const emailjs = require("@emailjs/nodejs");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const path = require("path");
@@ -17,18 +17,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 
+const EMAILJS_SERVICE_ID = "service_ekyh2ml";
+const EMAILJS_TEMPLATE_ID = "template_o0frccc";
+const EMAILJS_PUBLIC_KEY = "PVNi0lpZxDHa2MIQN";
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
 
 // Home page
 app.get("/", (req, res) => {
@@ -451,36 +447,35 @@ app.post("/attendance", async (req, res) => {
       }
     );
 
-    if (
-      status === "Absent" &&
-      student.parentEmail &&
-      process.env.GMAIL_USER &&
-      process.env.GMAIL_APP_PASSWORD
-    ) {
-      try {
-        await transporter.sendMail({
-          from: process.env.GMAIL_USER,
-          to: student.parentEmail,
-          subject: "Student Attendance Notification",
-          text:
-            `Dear ${student.parentName || "Parent/Guardian"},\n\n` +
-            `${student.name} (Roll Number: ${student.rollNumber}) ` +
-            `was marked absent on ${date}.\n\n` +
-            "Regards,\nAttendEase",
-        });
-
-        attendance.notificationStatus = "Sent";
-        await attendance.save();
-      } catch (emailError) {
-        console.error(
-          "Parent notification failed:",
-          emailError
-        );
-
-        attendance.notificationStatus = "Failed";
-        await attendance.save();
+   if (status === "Absent" && student.parentEmail) {
+  try {
+    await emailjs.send(
+      EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ID,
+      {
+        to_email: student.parentEmail,
+        parent_name: student.parentName || "Parent/Guardian",
+        student_name: student.name,
+        roll_number: student.rollNumber,
+        date: date
+      },
+      {
+        publicKey: EMAILJS_PUBLIC_KEY
       }
-    }
+    );
+
+    attendance.notificationStatus = "Sent";
+    await attendance.save();
+
+    console.log("Parent notification sent successfully.");
+
+  } catch (emailError) {
+    console.error("EmailJS notification failed:", emailError);
+
+    attendance.notificationStatus = "Failed";
+    await attendance.save();
+  }
+}
 
     return res.json({
       message: "Attendance saved successfully.",
