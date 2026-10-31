@@ -593,11 +593,13 @@ async function loadStudents() {
             throw new Error("The students API did not return a list.");
         }
 
-        allStudents = data.map(student => ({
-            id: String(student.studentId ?? ""),
-            name: String(student.name ?? ""),
-            roll: String(student.rollNumber ?? ""),
-            classId: normalize(student.classId)
+      allStudents = data.map(student => ({
+    id: String(student._id ?? ""),
+    studentId: String(student.studentId ?? ""),
+    name: String(student.name ?? ""),
+    roll: String(student.rollNumber ?? ""),
+    classId: normalize(student.classId)
+}));
         }));
 
         displayStudents();
@@ -653,7 +655,7 @@ function displayStudents() {
             <td>
                 <span class="student-name">${escapeHTML(student.name)}</span>
                 <span class="small">
-                    ID: ${escapeHTML(student.id)}
+                    ID: ${escapeHTML(student.studentId)}
                     · Class: ${escapeHTML(student.classId || "Not specified")}
                 </span>
             </td>
