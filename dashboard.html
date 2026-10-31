@@ -600,7 +600,7 @@ async function loadStudents() {
     roll: String(student.rollNumber ?? ""),
     classId: normalize(student.classId)
 }));
-        }));
+        
 
         displayStudents();
         await loadAttendance();
