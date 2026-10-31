@@ -599,7 +599,30 @@ app.get("/attendance", async (req, res) => {
   }
 });
 
+// TEST GMAIL
+app.get("/test-email", async (req, res) => {
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: "janampallynikhitha@gmail.com",
+      subject: "AttendEase Test Email",
+      text: "Your parent notification system is working!"
+    });
 
+    res.json({
+      success: true,
+      message: "Email sent successfully!"
+    });
+
+  } catch (error) {
+    console.error("Gmail Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
 // ==============================
 // START SERVER
 // ==============================
